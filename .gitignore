@@ -1,0 +1,6 @@
+# Idea files
+*.iml
+/.idea
+
+# binary folder
+/bin
