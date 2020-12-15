@@ -1,0 +1,16 @@
+# Idea files
+*.iml
+/.idea
+
+# binary folder
+/bin
+
+# Docker files
+.dockerignore
+Dockerfile
+
+# git
+.gitignore
+
+# Markdown
+*.md
