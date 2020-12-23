@@ -11,23 +11,26 @@ import (
 )
 
 type Svc struct {
-	dmiSvc  *dmi.Svc
-	numaSvc *sys.NumaSvc
-	procSvc *proc.Svc
+	dmiSvc   *dmi.Svc
+	numaSvc  *sys.NumaSvc
+	blockSvc *sys.BlockSvc
+	procSvc  *proc.Svc
 }
 
 func NewInventorySvc() *Svc {
 	return &Svc{
-		dmiSvc:  dmi.NewDMISvc(),
-		numaSvc: sys.NewNumaSvc(),
-		procSvc: proc.NewProcSvc(),
+		dmiSvc:   dmi.NewDMISvc(),
+		numaSvc:  sys.NewNumaSvc(),
+		blockSvc: sys.NewBlockSvc(),
+		procSvc:  proc.NewProcSvc(),
 	}
 }
 
 type Inventory struct {
-	DMI  *dmi.DMI
-	Numa *sys.Numa
-	Proc *proc.Proc
+	DMI   *dmi.DMI
+	Numa  *sys.Numa
+	Block *sys.Block
+	Proc  *proc.Proc
 }
 
 func (is *Svc) Inventorize() {
@@ -53,6 +56,13 @@ func (is *Svc) Inventorize() {
 		return
 	}
 	inv.Proc = procData
+
+	blockData, err := is.blockSvc.GetBlockData()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	inv.Block = blockData
 
 	jsonBytes, err := json.Marshal(inv)
 	if err != nil {
