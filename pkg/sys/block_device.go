@@ -12,6 +12,8 @@ import (
 const (
 	CQueueRotationalPath        = "/queue/rotational"
 	CQueuePhysicalBlockSizePath = "/queue/physical_block_size"
+	CQueueLogicalBlockSizePath  = "/queue/logical_block_size"
+	CQueueHWSectorSizePath      = "/queue/hw_sector_size"
 	CDeviceVendorPath           = "/device/vendor"
 	CDeviceModelPath            = "/device/model"
 	CDeviceSerialPath           = "/device/serial"
@@ -22,8 +24,6 @@ const (
 	CRemovablePath              = "/removable"
 	CSizePath                   = "/size"
 	CReadOnlyPath               = "/ro"
-
-	CDefaultSectorSize = 512
 
 	CFloppyDiskPattern = "fd(\\d+)"
 	CCDROMDiskPattern  = "(sr|scd)(\\d+)"
@@ -69,22 +69,24 @@ var CDiskMap = map[string]regexp.Regexp{
 }
 
 type BlockDevice struct {
-	Path             string
-	Name             string
-	Type             string
-	Rotational       bool
-	Removable        bool
-	ReadOnly         bool
-	Vendor           string
-	Model            string
-	Serial           string
-	WWID             string
-	FirmwareRevision string
-	State            string
-	Size             uint64
-	BlockSize        uint64
-	NUMANodeID       uint64
-	Stat             *BlockDeviceStat
+	Path              string
+	Name              string
+	Type              string
+	Rotational        bool
+	Removable         bool
+	ReadOnly          bool
+	Vendor            string
+	Model             string
+	Serial            string
+	WWID              string
+	FirmwareRevision  string
+	State             string
+	PhysicalBlockSize uint64
+	LogicalBlockSize  uint64
+	HWSectorSize      uint64
+	Size              uint64
+	NUMANodeID        uint64
+	Stat              *BlockDeviceStat
 }
 
 func NewBlockDevice(thePath string, name string) (*BlockDevice, error) {
@@ -104,8 +106,10 @@ func NewBlockDevice(thePath string, name string) (*BlockDevice, error) {
 		device.defWWID,
 		device.defFirmwareRev,
 		device.defState,
+		device.defHWSectorSize,
+		device.defPhysicalBlockSize,
+		device.defLogicalBlockSize,
 		device.defSize,
-		device.defBlockSize,
 		device.defNumaNodeID,
 		device.defStat,
 	}
@@ -216,19 +220,43 @@ func (bd *BlockDevice) defSize() error {
 		return errors.Wrapf(err, "unable to get value from file %s", sizePath)
 	}
 
-	bd.Size = size * CDefaultSectorSize
+	bd.Size = size * bd.HWSectorSize
 
 	return nil
 }
 
-func (bd *BlockDevice) defBlockSize() error {
+func (bd *BlockDevice) defPhysicalBlockSize() error {
 	blockSizePath := path.Join(bd.Path, CQueuePhysicalBlockSizePath)
 	blockSize, err := file.ToUint64(blockSizePath)
 	if err != nil {
 		return errors.Wrapf(err, "unable to get value from file %s", blockSizePath)
 	}
 
-	bd.BlockSize = blockSize
+	bd.PhysicalBlockSize = blockSize
+
+	return nil
+}
+
+func (bd *BlockDevice) defLogicalBlockSize() error {
+	blockSizePath := path.Join(bd.Path, CQueueLogicalBlockSizePath)
+	blockSize, err := file.ToUint64(blockSizePath)
+	if err != nil {
+		return errors.Wrapf(err, "unable to get value from file %s", blockSizePath)
+	}
+
+	bd.LogicalBlockSize = blockSize
+
+	return nil
+}
+
+func (bd *BlockDevice) defHWSectorSize() error {
+	sectorSizePath := path.Join(bd.Path, CQueueHWSectorSizePath)
+	sectorSize, err := file.ToUint64(sectorSizePath)
+	if err != nil {
+		return errors.Wrapf(err, "unable to get value from file %s", sectorSizePath)
+	}
+
+	bd.HWSectorSize = sectorSize
 
 	return nil
 }
