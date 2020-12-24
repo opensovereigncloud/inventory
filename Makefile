@@ -9,7 +9,8 @@ all: compile
 
 .PHONY: compile
 compile: fmt vet
-	go build -o bin/$(BIN_NAME) cmd/inventory/main.go
+	go build -o dist/$(BIN_NAME) cmd/inventory/main.go
+	cp -rf res/ dist/
 
 .PHONY: fmt
 fmt:
@@ -18,6 +19,10 @@ fmt:
 .PHONY: vet
 vet:
 	go vet ./...
+
+.PHONY: dl-pciids
+dl-pciids:
+	curl https://pci-ids.ucw.cz/v2.2/pci.ids --output ./res/pci.ids
 
 .PHONY: docker-build
 docker-build:
@@ -29,4 +34,4 @@ docker-push:
 
 .PHONY: clean
 clean:
-	rm -rf ./bin/
+	rm -rf ./dist/

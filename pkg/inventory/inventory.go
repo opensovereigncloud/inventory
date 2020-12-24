@@ -14,14 +14,21 @@ type Svc struct {
 	dmiSvc   *dmi.Svc
 	numaSvc  *sys.NumaSvc
 	blockSvc *sys.BlockSvc
+	pciSvc   *sys.PCISvc
 	procSvc  *proc.Svc
 }
 
 func NewInventorySvc() *Svc {
+	pciSvc, err := sys.NewPCISvc()
+	if err != nil {
+		panic(err)
+	}
+
 	return &Svc{
 		dmiSvc:   dmi.NewDMISvc(),
 		numaSvc:  sys.NewNumaSvc(),
 		blockSvc: sys.NewBlockSvc(),
+		pciSvc:   pciSvc,
 		procSvc:  proc.NewProcSvc(),
 	}
 }

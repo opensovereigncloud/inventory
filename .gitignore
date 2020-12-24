@@ -2,5 +2,5 @@
 *.iml
 /.idea
 
-# binary folder
-/bin
+# dist folder
+/dist

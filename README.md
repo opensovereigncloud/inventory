@@ -8,7 +8,7 @@
 
 Program uses machine's DMI interface, so it requires additional privileges. 
 
-    sudo ./bin/inventory
+    sudo ./dist/inventory
 
 ### Clean
 
