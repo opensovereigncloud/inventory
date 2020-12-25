@@ -38,6 +38,7 @@ type Inventory struct {
 	Numa  *sys.Numa
 	Block *sys.Block
 	Proc  *proc.Proc
+	PCI   *sys.PCI
 }
 
 func (is *Svc) Inventorize() {
@@ -70,6 +71,13 @@ func (is *Svc) Inventorize() {
 		return
 	}
 	inv.Block = blockData
+
+	pciData, err := is.pciSvc.GetPCIData()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	inv.PCI = pciData
 
 	jsonBytes, err := json.Marshal(inv)
 	if err != nil {
