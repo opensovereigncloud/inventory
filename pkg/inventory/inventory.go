@@ -14,14 +14,21 @@ type Svc struct {
 	dmiSvc   *dmi.Svc
 	numaSvc  *sys.NumaSvc
 	blockSvc *sys.BlockSvc
+	pciSvc   *sys.PCISvc
 	procSvc  *proc.Svc
 }
 
 func NewInventorySvc() *Svc {
+	pciSvc, err := sys.NewPCISvc()
+	if err != nil {
+		panic(err)
+	}
+
 	return &Svc{
 		dmiSvc:   dmi.NewDMISvc(),
 		numaSvc:  sys.NewNumaSvc(),
 		blockSvc: sys.NewBlockSvc(),
+		pciSvc:   pciSvc,
 		procSvc:  proc.NewProcSvc(),
 	}
 }
@@ -31,6 +38,7 @@ type Inventory struct {
 	Numa  *sys.Numa
 	Block *sys.Block
 	Proc  *proc.Proc
+	PCI   *sys.PCI
 }
 
 func (is *Svc) Inventorize() {
@@ -63,6 +71,13 @@ func (is *Svc) Inventorize() {
 		return
 	}
 	inv.Block = blockData
+
+	pciData, err := is.pciSvc.GetPCIData()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	inv.PCI = pciData
 
 	jsonBytes, err := json.Marshal(inv)
 	if err != nil {
