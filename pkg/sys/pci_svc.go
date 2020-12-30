@@ -23,7 +23,7 @@ type PCI struct {
 }
 
 type PCISvc struct {
-	ID *pci.IDs
+	ids *pci.IDs
 }
 
 func NewPCISvc() (*PCISvc, error) {
@@ -33,7 +33,7 @@ func NewPCISvc() (*PCISvc, error) {
 	}
 
 	return &PCISvc{
-		ID: ids,
+		ids: ids,
 	}, nil
 }
 
@@ -54,7 +54,7 @@ func (ps *PCISvc) GetPCIData() (*PCI, error) {
 		}
 
 		pciBusPath := path.Join(CDevicesPath, fName)
-		bus, err := NewPCIBus(pciBusPath, groups[1])
+		bus, err := NewPCIBus(pciBusPath, groups[1], ps.ids)
 		if err != nil {
 			return nil, errors.Wrapf(err, "unable to collect PCI bus %s data", groups[1])
 		}
