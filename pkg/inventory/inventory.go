@@ -7,6 +7,7 @@ import (
 
 	"github.com/onmetal/inventory/pkg/dmi"
 	"github.com/onmetal/inventory/pkg/proc"
+	"github.com/onmetal/inventory/pkg/run"
 	"github.com/onmetal/inventory/pkg/sys"
 )
 
@@ -16,6 +17,7 @@ type Svc struct {
 	blockSvc *sys.BlockSvc
 	pciSvc   *sys.PCISvc
 	procSvc  *proc.Svc
+	lldpSvc  *run.Svc
 }
 
 func NewInventorySvc() *Svc {
@@ -30,6 +32,7 @@ func NewInventorySvc() *Svc {
 		blockSvc: sys.NewBlockSvc(),
 		pciSvc:   pciSvc,
 		procSvc:  proc.NewProcSvc(),
+		lldpSvc:  run.NewLLDPSvc(),
 	}
 }
 
@@ -39,6 +42,7 @@ type Inventory struct {
 	Block *sys.Block
 	Proc  *proc.Proc
 	PCI   *sys.PCI
+	LLDP  *run.LLDP
 }
 
 func (is *Svc) Inventorize() {
@@ -78,6 +82,13 @@ func (is *Svc) Inventorize() {
 		return
 	}
 	inv.PCI = pciData
+
+	lldpData, err := is.lldpSvc.GetLLDPData()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	inv.LLDP = lldpData
 
 	jsonBytes, err := json.Marshal(inv)
 	if err != nil {
