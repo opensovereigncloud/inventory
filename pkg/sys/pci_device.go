@@ -54,6 +54,7 @@ type PCIDeviceProgrammingInterface struct {
 }
 
 type PCIDevice struct {
+	Address              string
 	Vendor               *PCIDeviceVendor
 	Type                 *PCIDeviceType
 	Subvendor            *PCIDeviceVendor
@@ -63,8 +64,11 @@ type PCIDevice struct {
 	ProgrammingInterface *PCIDeviceProgrammingInterface
 }
 
-func NewPCIDevice(thePath string, ids *pci.IDs) (*PCIDevice, error) {
-	device := &PCIDevice{}
+func NewPCIDevice(thePath string, name string, ids *pci.IDs) (*PCIDevice, error) {
+	device := &PCIDevice{
+		Address: name,
+	}
+
 	err := device.defVendor(thePath, ids)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to set vendor branch")

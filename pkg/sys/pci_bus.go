@@ -42,7 +42,7 @@ func NewPCIBus(thePath string, id string, ids *pci.IDs) (*PCIBus, error) {
 
 		pciDevPath := path.Join(thePath, name)
 
-		device, err := NewPCIDevice(pciDevPath, ids)
+		device, err := NewPCIDevice(pciDevPath, name, ids)
 		if err != nil {
 			return nil, errors.Wrapf(err, "unable to collect info for device %s", name)
 		}
