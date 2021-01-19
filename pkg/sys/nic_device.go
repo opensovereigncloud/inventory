@@ -3,6 +3,7 @@ package sys
 import (
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 
 	"github.com/pkg/errors"
@@ -120,6 +121,7 @@ func NewNIC(thePath string, name string) (*NIC, error) {
 	}
 
 	defs := []func(string) error{
+		nic.defPCIAddress,
 		nic.defAddressAssignType,
 		nic.defAddress,
 		nic.defAddressLength,
@@ -152,7 +154,7 @@ func NewNIC(thePath string, name string) (*NIC, error) {
 	for _, def := range defs {
 		err := def(thePath)
 		if err != nil {
-
+			// TODO: handle errors in verbose mode when implemented
 		}
 	}
 
@@ -161,9 +163,14 @@ func NewNIC(thePath string, name string) (*NIC, error) {
 
 func (n *NIC) defPCIAddress(thePath string) error {
 	filePath := path.Join(thePath, CNICDevicePCIAddressPath)
-	fileInfo, err := os.Lstat(filePath)
+
+	linkPath, err := filepath.EvalSymlinks(filePath)
 	if err != nil {
 		return errors.Wrapf(err, "unable resolve symlink with path %s", filePath)
+	}
+	fileInfo, err := os.Stat(linkPath)
+	if err != nil {
+		return errors.Wrapf(err, "unable to get stat for path %s", filePath)
 	}
 
 	n.PCIAddress = fileInfo.Name()
