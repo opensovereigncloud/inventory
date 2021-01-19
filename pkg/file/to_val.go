@@ -48,6 +48,48 @@ func ToUint64(path string) (uint64, error) {
 	return num, nil
 }
 
+func ToUint32(path string) (uint32, error) {
+	fileString, err := ToString(path)
+	if err != nil {
+		return 0, errors.Wrapf(err, "unable to read string from file %s ", path)
+	}
+
+	num, err := strconv.ParseUint(fileString, 10, 32)
+	if err != nil {
+		return 0, errors.Wrapf(err, "unable to convert %s file to int", fileString)
+	}
+
+	return uint32(num), nil
+}
+
+func ToUint16(path string) (uint16, error) {
+	fileString, err := ToString(path)
+	if err != nil {
+		return 0, errors.Wrapf(err, "unable to read string from file %s ", path)
+	}
+
+	num, err := strconv.ParseUint(fileString, 10, 16)
+	if err != nil {
+		return 0, errors.Wrapf(err, "unable to convert %s file to int", fileString)
+	}
+
+	return uint16(num), nil
+}
+
+func ToUint8(path string) (uint8, error) {
+	fileString, err := ToString(path)
+	if err != nil {
+		return 0, errors.Wrapf(err, "unable to read string from file %s ", path)
+	}
+
+	num, err := strconv.ParseUint(fileString, 10, 8)
+	if err != nil {
+		return 0, errors.Wrapf(err, "unable to convert %s file to int", fileString)
+	}
+
+	return uint8(num), nil
+}
+
 func ToBool(path string) (bool, error) {
 	num, err := ToInt(path)
 	if err != nil {
