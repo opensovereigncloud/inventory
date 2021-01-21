@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/onmetal/inventory/pkg/dmi"
+	"github.com/onmetal/inventory/pkg/ioctl"
 	"github.com/onmetal/inventory/pkg/proc"
 	"github.com/onmetal/inventory/pkg/run"
 	"github.com/onmetal/inventory/pkg/sys"
@@ -19,6 +20,7 @@ type Svc struct {
 	procSvc  *proc.Svc
 	lldpSvc  *run.Svc
 	nicSvc   *sys.NICSvc
+	ipmiSVC  *ioctl.IPMISvc
 }
 
 func NewInventorySvc() *Svc {
@@ -35,6 +37,7 @@ func NewInventorySvc() *Svc {
 		procSvc:  proc.NewProcSvc(),
 		lldpSvc:  run.NewLLDPSvc(),
 		nicSvc:   sys.NewNICSvc(),
+		ipmiSVC:  ioctl.NewIPMISvc(),
 	}
 }
 
@@ -46,6 +49,7 @@ type Inventory struct {
 	PCI     *sys.PCI
 	LLDP    *run.LLDP
 	Network *sys.Network
+	IPMI    *ioctl.IPMI
 }
 
 func (is *Svc) Inventorize() {
@@ -99,6 +103,13 @@ func (is *Svc) Inventorize() {
 		return
 	}
 	inv.Network = nicData
+
+	ipmiData, err := is.ipmiSVC.GetIPMIData()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	inv.IPMI = ipmiData
 
 	jsonBytes, err := json.Marshal(inv)
 	if err != nil {
