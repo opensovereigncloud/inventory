@@ -13,14 +13,15 @@ import (
 )
 
 type Svc struct {
-	dmiSvc   *dmi.Svc
-	numaSvc  *sys.NumaSvc
-	blockSvc *sys.BlockSvc
-	pciSvc   *sys.PCISvc
-	procSvc  *proc.Svc
-	lldpSvc  *run.Svc
-	nicSvc   *sys.NICSvc
-	ipmiSVC  *ioctl.IPMISvc
+	dmiSvc     *dmi.Svc
+	numaSvc    *sys.NumaSvc
+	blockSvc   *sys.BlockSvc
+	pciSvc     *sys.PCISvc
+	procSvc    *proc.Svc
+	lldpSvc    *run.Svc
+	nicSvc     *sys.NICSvc
+	ipmiSvc    *ioctl.IPMISvc
+	netlinkSvc *ioctl.NetlinkSvc
 }
 
 func NewInventorySvc() *Svc {
@@ -30,14 +31,15 @@ func NewInventorySvc() *Svc {
 	}
 
 	return &Svc{
-		dmiSvc:   dmi.NewDMISvc(),
-		numaSvc:  sys.NewNumaSvc(),
-		blockSvc: sys.NewBlockSvc(),
-		pciSvc:   pciSvc,
-		procSvc:  proc.NewProcSvc(),
-		lldpSvc:  run.NewLLDPSvc(),
-		nicSvc:   sys.NewNICSvc(),
-		ipmiSVC:  ioctl.NewIPMISvc(),
+		dmiSvc:     dmi.NewDMISvc(),
+		numaSvc:    sys.NewNumaSvc(),
+		blockSvc:   sys.NewBlockSvc(),
+		pciSvc:     pciSvc,
+		procSvc:    proc.NewProcSvc(),
+		lldpSvc:    run.NewLLDPSvc(),
+		nicSvc:     sys.NewNICSvc(),
+		ipmiSvc:    ioctl.NewIPMISvc(),
+		netlinkSvc: ioctl.NewNetlinkSvc(),
 	}
 }
 
@@ -50,6 +52,7 @@ type Inventory struct {
 	LLDP    *run.LLDP
 	Network *sys.Network
 	IPMI    *ioctl.IPMI
+	Netlink *ioctl.NetData
 }
 
 func (is *Svc) Inventorize() {
@@ -104,12 +107,19 @@ func (is *Svc) Inventorize() {
 	}
 	inv.Network = nicData
 
-	ipmiData, err := is.ipmiSVC.GetIPMIData()
+	ipmiData, err := is.ipmiSvc.GetIPMIData()
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 	inv.IPMI = ipmiData
+
+	netData, err := is.netlinkSvc.GetIPv6NeighbourData()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	inv.Netlink = netData
 
 	jsonBytes, err := json.Marshal(inv)
 	if err != nil {
