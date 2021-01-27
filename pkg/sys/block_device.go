@@ -6,6 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/onmetal/inventory/pkg/dev"
 	"github.com/onmetal/inventory/pkg/file"
 )
 
@@ -86,6 +87,7 @@ type BlockDevice struct {
 	HWSectorSize      uint64
 	Size              uint64
 	NUMANodeID        uint64
+	PartitionTable    *dev.PartitionTable
 	Stat              *BlockDeviceStat
 }
 
@@ -111,6 +113,7 @@ func NewBlockDevice(thePath string, name string) (*BlockDevice, error) {
 		device.defLogicalBlockSize,
 		device.defSize,
 		device.defNumaNodeID,
+		device.defPartitionTable,
 		device.defStat,
 	}
 
@@ -305,6 +308,17 @@ func (bd *BlockDevice) defState() error {
 	}
 
 	bd.State = state
+
+	return nil
+}
+
+func (bd *BlockDevice) defPartitionTable() error {
+	table, err := dev.NewPartitionTable(bd.Name)
+	if err != nil {
+		return errors.Wrap(err, "unable to get partition table")
+	}
+
+	bd.PartitionTable = table
 
 	return nil
 }
