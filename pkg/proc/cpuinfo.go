@@ -14,7 +14,7 @@ import (
 const (
 	CCPUInfoPath = "/proc/cpuinfo"
 
-	CCPUInfoLinePattern = "^(\\w+)\\s*:\\s*(.*)$"
+	CCPUInfoLinePattern = "^(\\w+\\s?\\w+?)\\s*:\\s*(.*)$"
 
 	CCPUInfoProcessorKey       = "processor"
 	CCPUInfoVendorIDKey        = "vendor_id"
