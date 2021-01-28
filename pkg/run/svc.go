@@ -11,17 +11,13 @@ const (
 	CLLDPPath = "/run/systemd/netif/lldp"
 )
 
-type LLDP struct {
-	Frames []LLDPFrameInfo
-}
-
 type Svc struct{}
 
 func NewLLDPSvc() *Svc {
 	return &Svc{}
 }
 
-func (l *Svc) GetLLDPData() (*LLDP, error) {
+func (l *Svc) GetLLDPData() ([]LLDPFrameInfo, error) {
 	frameFiles, err := ioutil.ReadDir(CLLDPPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to get list of frame files")
@@ -40,7 +36,5 @@ func (l *Svc) GetLLDPData() (*LLDP, error) {
 		frameInfos = append(frameInfos, *info)
 	}
 
-	return &LLDP{
-		Frames: frameInfos,
-	}, nil
+	return frameInfos, nil
 }

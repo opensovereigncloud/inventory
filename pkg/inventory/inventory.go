@@ -44,15 +44,15 @@ func NewInventorySvc() *Svc {
 }
 
 type Inventory struct {
-	DMI     *dmi.DMI
-	Numa    *sys.Numa
-	Block   *sys.Block
-	Proc    *proc.Proc
-	PCI     *sys.PCI
-	LLDP    *run.LLDP
-	Network *sys.Network
-	IPMI    *ioctl.IPMI
-	Netlink *ioctl.NetData
+	DMI           *dmi.DMI
+	Proc          *proc.Proc
+	NumaNodes     []sys.NumaNode
+	BlockDevices  []sys.BlockDevice
+	PCIBusDevices []sys.PCIBus
+	IPMIDevices   []ioctl.IPMIDeviceInfo
+	NICs          []sys.NIC
+	LLDPFrames    []run.LLDPFrameInfo
+	NDPFrames     []ioctl.IPv6Neighbour
 }
 
 func (is *Svc) Inventorize() {
@@ -70,7 +70,7 @@ func (is *Svc) Inventorize() {
 		fmt.Println(err)
 		return
 	}
-	inv.Numa = numaData
+	inv.NumaNodes = numaData
 
 	procData, err := is.procSvc.GetProcData()
 	if err != nil {
@@ -84,42 +84,42 @@ func (is *Svc) Inventorize() {
 		fmt.Println(err)
 		return
 	}
-	inv.Block = blockData
+	inv.BlockDevices = blockData
 
 	pciData, err := is.pciSvc.GetPCIData()
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	inv.PCI = pciData
+	inv.PCIBusDevices = pciData
 
 	lldpData, err := is.lldpSvc.GetLLDPData()
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	inv.LLDP = lldpData
+	inv.LLDPFrames = lldpData
 
 	nicData, err := is.nicSvc.GetNICData()
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	inv.Network = nicData
+	inv.NICs = nicData
 
 	ipmiData, err := is.ipmiSvc.GetIPMIData()
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	inv.IPMI = ipmiData
+	inv.IPMIDevices = ipmiData
 
 	netData, err := is.netlinkSvc.GetIPv6NeighbourData()
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	inv.Netlink = netData
+	inv.NDPFrames = netData
 
 	jsonBytes, err := json.Marshal(inv)
 	if err != nil {

@@ -17,12 +17,8 @@ func NewBlockSvc() *BlockSvc {
 	return &BlockSvc{}
 }
 
-type Block struct {
-	Blocks map[string]BlockDevice
-}
-
-func (bs *BlockSvc) GetBlockData() (*Block, error) {
-	blocks := make(map[string]BlockDevice)
+func (bs *BlockSvc) GetBlockData() ([]BlockDevice, error) {
+	blocks := make([]BlockDevice, 0)
 	fileInfos, err := ioutil.ReadDir(CSysBlockBasePath)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to get list of block devices")
@@ -36,10 +32,8 @@ func (bs *BlockSvc) GetBlockData() (*Block, error) {
 			return nil, errors.Wrapf(err, "unable to collect block device data for %s", thePath)
 		}
 
-		blocks[name] = *block
+		blocks = append(blocks, *block)
 	}
 
-	return &Block{
-		Blocks: blocks,
-	}, nil
+	return blocks, nil
 }

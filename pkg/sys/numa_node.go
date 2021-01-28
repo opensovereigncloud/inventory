@@ -22,13 +22,14 @@ var CDistanceTrimRegexp = regexp.MustCompile(CDistanceTrimPattern)
 var CCPUListTrimRegexp = regexp.MustCompile(CCPUListTrimPattern)
 
 type NumaNode struct {
+	ID       int
 	CPUs     []int
 	Distance int
 	Memory   *NumaMemory
 	Stat     *NumaStat
 }
 
-func NewNumaNode(thePath string) (*NumaNode, error) {
+func NewNumaNode(thePath string, nodeId int) (*NumaNode, error) {
 	distancePath := path.Join(thePath, CNodeDistancePath)
 	distanceData, err := ioutil.ReadFile(distancePath)
 	if err != nil {
@@ -92,6 +93,7 @@ func NewNumaNode(thePath string) (*NumaNode, error) {
 	}
 
 	return &NumaNode{
+		ID:       nodeId,
 		Distance: distance,
 		CPUs:     cpuList,
 		Memory:   mem,

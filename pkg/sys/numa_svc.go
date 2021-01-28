@@ -15,10 +15,6 @@ func NewNumaSvc() *NumaSvc {
 	return &NumaSvc{}
 }
 
-type Numa struct {
-	Nodes map[int]NumaNode
-}
-
 const (
 	CNodeDevicePath = "/sys/devices/system/node"
 
@@ -27,8 +23,8 @@ const (
 
 var CNumericNodeDeviceDirNameRegexp = regexp.MustCompile(CNumericNodeDeviceDirNamePattern)
 
-func (ns *NumaSvc) GetNumaData() (*Numa, error) {
-	numaNodes := make(map[int]NumaNode)
+func (ns *NumaSvc) GetNumaData() ([]NumaNode, error) {
+	numaNodes := make([]NumaNode, 0)
 
 	err := filepath.Walk(CNodeDevicePath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -53,12 +49,12 @@ func (ns *NumaSvc) GetNumaData() (*Numa, error) {
 			return errors.Wrapf(err, "unable to convert node number string %s to int", nodeNumberString)
 		}
 
-		node, err := NewNumaNode(path)
+		node, err := NewNumaNode(path, nodeNumber)
 		if err != nil {
 			return errors.Wrapf(err, "unable to collect  %s", path)
 		}
 
-		numaNodes[nodeNumber] = *node
+		numaNodes = append(numaNodes, *node)
 
 		return nil
 	})
@@ -67,7 +63,5 @@ func (ns *NumaSvc) GetNumaData() (*Numa, error) {
 		return nil, errors.Wrapf(err, "unable to walk through %s folder contents", CNodeDevicePath)
 	}
 
-	return &Numa{
-		Nodes: numaNodes,
-	}, nil
+	return numaNodes, nil
 }

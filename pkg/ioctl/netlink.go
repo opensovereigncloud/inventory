@@ -7,15 +7,11 @@ import (
 
 type NetlinkSvc struct{}
 
-type NetData struct {
-	Neighbours []IPv6Neighbour
-}
-
 func NewNetlinkSvc() *NetlinkSvc {
 	return &NetlinkSvc{}
 }
 
-func (n *NetlinkSvc) GetIPv6NeighbourData() (*NetData, error) {
+func (n *NetlinkSvc) GetIPv6NeighbourData() ([]IPv6Neighbour, error) {
 	ll, err := netlink.LinkList()
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to obtain device list")
@@ -37,7 +33,5 @@ func (n *NetlinkSvc) GetIPv6NeighbourData() (*NetData, error) {
 		}
 	}
 
-	return &NetData{
-		Neighbours: neighbours,
-	}, nil
+	return neighbours, nil
 }

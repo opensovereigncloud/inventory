@@ -11,17 +11,13 @@ const (
 	CNICDevicePath = "/sys/class/net"
 )
 
-type Network struct {
-	NICs []NIC
-}
-
 type NICSvc struct{}
 
 func NewNICSvc() *NICSvc {
 	return &NICSvc{}
 }
 
-func (ns *NICSvc) GetNICData() (*Network, error) {
+func (ns *NICSvc) GetNICData() ([]NIC, error) {
 	nicFolders, err := ioutil.ReadDir(CNICDevicePath)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to get list of nic folders")
@@ -38,7 +34,5 @@ func (ns *NICSvc) GetNICData() (*Network, error) {
 		nics = append(nics, *nic)
 	}
 
-	return &Network{
-		NICs: nics,
-	}, nil
+	return nics, nil
 }
