@@ -18,10 +18,6 @@ const (
 
 var CPCIBusIDRegexp = regexp.MustCompile(CPCIBusIDPattern)
 
-type PCI struct {
-	PCIBuses []PCIBus
-}
-
 type PCISvc struct {
 	ids *pci.IDs
 }
@@ -37,7 +33,7 @@ func NewPCISvc() (*PCISvc, error) {
 	}, nil
 }
 
-func (ps *PCISvc) GetPCIData() (*PCI, error) {
+func (ps *PCISvc) GetPCIData() ([]PCIBus, error) {
 	deviceFolders, err := ioutil.ReadDir(CDevicesPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to get list of device folders")
@@ -62,7 +58,5 @@ func (ps *PCISvc) GetPCIData() (*PCI, error) {
 		buses = append(buses, *bus)
 	}
 
-	return &PCI{
-		PCIBuses: buses,
-	}, nil
+	return buses, nil
 }

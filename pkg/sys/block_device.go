@@ -70,7 +70,7 @@ var CDiskMap = map[string]regexp.Regexp{
 }
 
 type BlockDevice struct {
-	Path              string
+	path              string
 	Name              string
 	Type              string
 	Rotational        bool
@@ -93,7 +93,7 @@ type BlockDevice struct {
 
 func NewBlockDevice(thePath string, name string) (*BlockDevice, error) {
 	device := &BlockDevice{
-		Path: thePath,
+		path: thePath,
 		Name: name,
 	}
 
@@ -145,7 +145,7 @@ func (bd *BlockDevice) defType() error {
 }
 
 func (bd *BlockDevice) defRotational() error {
-	rotationalPath := path.Join(bd.Path, CQueueRotationalPath)
+	rotationalPath := path.Join(bd.path, CQueueRotationalPath)
 	rotational, err := file.ToBool(rotationalPath)
 	if err != nil {
 		return errors.Wrapf(err, "unable to get value from file %s", rotationalPath)
@@ -157,7 +157,7 @@ func (bd *BlockDevice) defRotational() error {
 }
 
 func (bd *BlockDevice) defVendor() error {
-	vendorPath := path.Join(bd.Path, CDeviceVendorPath)
+	vendorPath := path.Join(bd.path, CDeviceVendorPath)
 	vendor, err := file.ToString(vendorPath)
 	if err != nil {
 		return errors.Wrapf(err, "unable to get value from file %s", vendorPath)
@@ -169,7 +169,7 @@ func (bd *BlockDevice) defVendor() error {
 }
 
 func (bd *BlockDevice) defModel() error {
-	modelPath := path.Join(bd.Path, CDeviceModelPath)
+	modelPath := path.Join(bd.path, CDeviceModelPath)
 	model, err := file.ToString(modelPath)
 	if err != nil {
 		return errors.Wrapf(err, "unable to get value from file %s", modelPath)
@@ -181,7 +181,7 @@ func (bd *BlockDevice) defModel() error {
 }
 
 func (bd *BlockDevice) defWWID() error {
-	wwidPath := path.Join(bd.Path, CWWIDPath)
+	wwidPath := path.Join(bd.path, CWWIDPath)
 	wwid, err := file.ToString(wwidPath)
 	if err != nil {
 		return errors.Wrapf(err, "unable to get value from file %s", wwidPath)
@@ -193,7 +193,7 @@ func (bd *BlockDevice) defWWID() error {
 }
 
 func (bd *BlockDevice) defRemovable() error {
-	removablePath := path.Join(bd.Path, CRemovablePath)
+	removablePath := path.Join(bd.path, CRemovablePath)
 	removable, err := file.ToBool(removablePath)
 	if err != nil {
 		return errors.Wrapf(err, "unable to get value from file %s", removablePath)
@@ -205,7 +205,7 @@ func (bd *BlockDevice) defRemovable() error {
 }
 
 func (bd *BlockDevice) defSerial() error {
-	serialPath := path.Join(bd.Path, CDeviceSerialPath)
+	serialPath := path.Join(bd.path, CDeviceSerialPath)
 	serial, err := file.ToString(serialPath)
 	if err != nil {
 		return errors.Wrapf(err, "unable to get value from file %s", serialPath)
@@ -217,7 +217,7 @@ func (bd *BlockDevice) defSerial() error {
 }
 
 func (bd *BlockDevice) defSize() error {
-	sizePath := path.Join(bd.Path, CSizePath)
+	sizePath := path.Join(bd.path, CSizePath)
 	size, err := file.ToUint64(sizePath)
 	if err != nil {
 		return errors.Wrapf(err, "unable to get value from file %s", sizePath)
@@ -229,7 +229,7 @@ func (bd *BlockDevice) defSize() error {
 }
 
 func (bd *BlockDevice) defPhysicalBlockSize() error {
-	blockSizePath := path.Join(bd.Path, CQueuePhysicalBlockSizePath)
+	blockSizePath := path.Join(bd.path, CQueuePhysicalBlockSizePath)
 	blockSize, err := file.ToUint64(blockSizePath)
 	if err != nil {
 		return errors.Wrapf(err, "unable to get value from file %s", blockSizePath)
@@ -241,7 +241,7 @@ func (bd *BlockDevice) defPhysicalBlockSize() error {
 }
 
 func (bd *BlockDevice) defLogicalBlockSize() error {
-	blockSizePath := path.Join(bd.Path, CQueueLogicalBlockSizePath)
+	blockSizePath := path.Join(bd.path, CQueueLogicalBlockSizePath)
 	blockSize, err := file.ToUint64(blockSizePath)
 	if err != nil {
 		return errors.Wrapf(err, "unable to get value from file %s", blockSizePath)
@@ -253,7 +253,7 @@ func (bd *BlockDevice) defLogicalBlockSize() error {
 }
 
 func (bd *BlockDevice) defHWSectorSize() error {
-	sectorSizePath := path.Join(bd.Path, CQueueHWSectorSizePath)
+	sectorSizePath := path.Join(bd.path, CQueueHWSectorSizePath)
 	sectorSize, err := file.ToUint64(sectorSizePath)
 	if err != nil {
 		return errors.Wrapf(err, "unable to get value from file %s", sectorSizePath)
@@ -265,7 +265,7 @@ func (bd *BlockDevice) defHWSectorSize() error {
 }
 
 func (bd *BlockDevice) defNumaNodeID() error {
-	numaPath := path.Join(bd.Path, CDeviceNumaNodePath)
+	numaPath := path.Join(bd.path, CDeviceNumaNodePath)
 	numa, err := file.ToUint64(numaPath)
 	if err != nil {
 		return errors.Wrapf(err, "unable to get value from file %s", numaPath)
@@ -277,7 +277,7 @@ func (bd *BlockDevice) defNumaNodeID() error {
 }
 
 func (bd *BlockDevice) defReadOnly() error {
-	roPath := path.Join(bd.Path, CReadOnlyPath)
+	roPath := path.Join(bd.path, CReadOnlyPath)
 	ro, err := file.ToBool(roPath)
 	if err != nil {
 		return errors.Wrapf(err, "unable to get value from file %s", roPath)
@@ -289,7 +289,7 @@ func (bd *BlockDevice) defReadOnly() error {
 }
 
 func (bd *BlockDevice) defFirmwareRev() error {
-	fwPath := path.Join(bd.Path, CDeviceFirmwareRevPath)
+	fwPath := path.Join(bd.path, CDeviceFirmwareRevPath)
 	fw, err := file.ToString(fwPath)
 	if err != nil {
 		return errors.Wrapf(err, "unable to get value from file %s", fwPath)
@@ -301,7 +301,7 @@ func (bd *BlockDevice) defFirmwareRev() error {
 }
 
 func (bd *BlockDevice) defState() error {
-	statePath := path.Join(bd.Path, CDeviceState)
+	statePath := path.Join(bd.path, CDeviceState)
 	state, err := file.ToString(statePath)
 	if err != nil {
 		return errors.Wrapf(err, "unable to get value from file %s", statePath)
@@ -324,7 +324,7 @@ func (bd *BlockDevice) defPartitionTable() error {
 }
 
 func (bd *BlockDevice) defStat() error {
-	stat, err := NewBlockDeviceStat(bd.Path)
+	stat, err := NewBlockDeviceStat(bd.path)
 	if err != nil {
 		return errors.Wrap(err, "unable to collect stats")
 	}

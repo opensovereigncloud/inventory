@@ -15,17 +15,13 @@ const (
 
 var CIPMIDevRegexp = regexp.MustCompile(CIPMIDevPattern)
 
-type IPMI struct {
-	Devices []IPMIDeviceInfo
-}
-
 type IPMISvc struct{}
 
 func NewIPMISvc() *IPMISvc {
 	return &IPMISvc{}
 }
 
-func (s *IPMISvc) GetIPMIData() (*IPMI, error) {
+func (s *IPMISvc) GetIPMIData() ([]IPMIDeviceInfo, error) {
 	devFolderContents, err := ioutil.ReadDir(CDevPath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "unable to read contents of %s", CDevPath)
@@ -55,7 +51,5 @@ func (s *IPMISvc) GetIPMIData() (*IPMI, error) {
 		infos = append(infos, *info)
 	}
 
-	return &IPMI{
-		Devices: infos,
-	}, nil
+	return infos, nil
 }
