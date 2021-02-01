@@ -3,18 +3,27 @@ package inventory
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 
 	"github.com/pkg/errors"
 
 	"github.com/onmetal/inventory/pkg/dmi"
+	"github.com/onmetal/inventory/pkg/flags"
 	"github.com/onmetal/inventory/pkg/ioctl"
+	"github.com/onmetal/inventory/pkg/pci"
+	"github.com/onmetal/inventory/pkg/printer"
 	"github.com/onmetal/inventory/pkg/proc"
 	"github.com/onmetal/inventory/pkg/run"
 	"github.com/onmetal/inventory/pkg/sys"
 )
 
+const (
+	COKRetCode  = 0
+	CErrRetCode = -1
+)
+
 type Svc struct {
+	printer *printer.Svc
+
 	dmiSvc     *dmi.Svc
 	numaSvc    *sys.NumaSvc
 	blockSvc   *sys.BlockSvc
@@ -26,13 +35,23 @@ type Svc struct {
 	netlinkSvc *ioctl.NetlinkSvc
 }
 
-func NewInventorySvc() *Svc {
-	pciSvc, err := sys.NewPCISvc()
+func NewSvc() (*Svc, int) {
+	f := flags.NewFlags()
+
+	p := printer.NewSvc(f.Verbose)
+
+	pciIDs, err := pci.NewPCIIds()
 	if err != nil {
-		panic(err)
+		p.Err(errors.Wrapf(err, "unable to load PCI IDs"))
+		return nil, CErrRetCode
 	}
 
+	pciDevSvc := sys.NewPCIDeviceSvc(p, pciIDs)
+	pciBusSvc := sys.NewPCIBusSvc(p, pciDevSvc)
+	pciSvc := sys.NewPCISvc(p, pciBusSvc, f.Root)
+
 	return &Svc{
+		printer:    p,
 		dmiSvc:     dmi.NewDMISvc(),
 		numaSvc:    sys.NewNumaSvc(),
 		blockSvc:   sys.NewBlockSvc(),
@@ -42,10 +61,10 @@ func NewInventorySvc() *Svc {
 		nicSvc:     sys.NewNICSvc(),
 		ipmiSvc:    ioctl.NewIPMISvc(),
 		netlinkSvc: ioctl.NewNetlinkSvc(),
-	}
+	}, 0
 }
 
-func (is *Svc) Inventorize() {
+func (is *Svc) Inventorize() int {
 	inv := &Inventory{}
 
 	setters := []func(inventory *Inventory) error{
@@ -63,23 +82,25 @@ func (is *Svc) Inventorize() {
 	for _, setter := range setters {
 		err := setter(inv)
 		if err != nil {
-
+			is.printer.VErr(errors.Wrap(err, "unable to set value"))
 		}
 	}
 
 	jsonBytes, err := json.Marshal(inv)
 	if err != nil {
-		fmt.Println(err)
-		return
+		is.printer.Err(errors.Wrap(err, "unable to marshal result to json"))
+		return CErrRetCode
 	}
 
 	var prettifiedJsonBuf bytes.Buffer
 	if err := json.Indent(&prettifiedJsonBuf, jsonBytes, "", "\t"); err != nil {
-		fmt.Println(err)
-		return
+		is.printer.Err(errors.Wrap(err, "unable to indent json"))
+		return CErrRetCode
 	}
 
-	fmt.Println(prettifiedJsonBuf.String())
+	is.printer.Out(prettifiedJsonBuf.String())
+
+	return COKRetCode
 }
 
 func (is *Svc) setDMI(inv *Inventory) error {

@@ -7,7 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/onmetal/inventory/pkg/pci"
+	"github.com/onmetal/inventory/pkg/printer"
 )
 
 const (
@@ -21,7 +21,26 @@ type PCIBus struct {
 	Devices []PCIDevice
 }
 
-func NewPCIBus(thePath string, id string, ids *pci.IDs) (*PCIBus, error) {
+func NewPCIBus(id string, devices []PCIDevice) *PCIBus {
+	return &PCIBus{
+		ID:      id,
+		Devices: devices,
+	}
+}
+
+type PCIBusSvc struct {
+	printer      *printer.Svc
+	pciDeviceSvc *PCIDeviceSvc
+}
+
+func NewPCIBusSvc(printer *printer.Svc, pciDevSvc *PCIDeviceSvc) *PCIBusSvc {
+	return &PCIBusSvc{
+		printer:      printer,
+		pciDeviceSvc: pciDevSvc,
+	}
+}
+
+func (s *PCIBusSvc) GetPCIBus(thePath string, id string) (*PCIBus, error) {
 	pciDevFolders, err := ioutil.ReadDir(thePath)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to get list of block devices")
@@ -42,16 +61,14 @@ func NewPCIBus(thePath string, id string, ids *pci.IDs) (*PCIBus, error) {
 
 		pciDevPath := path.Join(thePath, name)
 
-		device, err := NewPCIDevice(pciDevPath, name, ids)
+		device, err := s.pciDeviceSvc.GetPCIDevice(pciDevPath, name)
 		if err != nil {
-			return nil, errors.Wrapf(err, "unable to collect info for device %s", name)
+			s.printer.VErr(errors.Wrapf(err, "unable to collect info for device %s", name))
+			continue
 		}
 
 		devices = append(devices, *device)
 	}
 
-	return &PCIBus{
-		ID:      id,
-		Devices: devices,
-	}, nil
+	return NewPCIBus(id, devices), nil
 }

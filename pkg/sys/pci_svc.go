@@ -7,7 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/onmetal/inventory/pkg/pci"
+	"github.com/onmetal/inventory/pkg/printer"
 )
 
 const (
@@ -19,22 +19,21 @@ const (
 var CPCIBusIDRegexp = regexp.MustCompile(CPCIBusIDPattern)
 
 type PCISvc struct {
-	ids *pci.IDs
+	printer     *printer.Svc
+	pciBusSvc   *PCIBusSvc
+	devicesPath string
 }
 
-func NewPCISvc() (*PCISvc, error) {
-	ids, err := pci.NewPCIIds()
-	if err != nil {
-		return nil, errors.Wrapf(err, "unable to load PCI IDs")
-	}
-
+func NewPCISvc(printer *printer.Svc, pciBusSvc *PCIBusSvc, basePath string) *PCISvc {
 	return &PCISvc{
-		ids: ids,
-	}, nil
+		printer:     printer,
+		pciBusSvc:   pciBusSvc,
+		devicesPath: path.Join(basePath, CDevicesPath),
+	}
 }
 
-func (ps *PCISvc) GetPCIData() ([]PCIBus, error) {
-	deviceFolders, err := ioutil.ReadDir(CDevicesPath)
+func (s *PCISvc) GetPCIData() ([]PCIBus, error) {
+	deviceFolders, err := ioutil.ReadDir(s.devicesPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to get list of device folders")
 	}
@@ -49,10 +48,11 @@ func (ps *PCISvc) GetPCIData() ([]PCIBus, error) {
 			continue
 		}
 
-		pciBusPath := path.Join(CDevicesPath, fName)
-		bus, err := NewPCIBus(pciBusPath, groups[1], ps.ids)
+		pciBusPath := path.Join(s.devicesPath, fName)
+		bus, err := s.pciBusSvc.GetPCIBus(pciBusPath, groups[1])
 		if err != nil {
-			return nil, errors.Wrapf(err, "unable to collect PCI bus %s data", groups[1])
+			s.printer.VErr(errors.Wrapf(err, "unable to collect PCI bus %s data", groups[1]))
+			continue
 		}
 
 		buses = append(buses, *bus)
