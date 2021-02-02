@@ -47,8 +47,6 @@ func NewBlockDeviceStat(thePath string) (*BlockDeviceStat, error) {
 
 	fields := strings.Fields(trimmedStringContents)
 
-	stat := &BlockDeviceStat{}
-
 	statVals := make([]uint64, len(fields))
 	for i, field := range fields {
 		val, err := strconv.ParseUint(field, 10, 64)
@@ -58,6 +56,8 @@ func NewBlockDeviceStat(thePath string) (*BlockDeviceStat, error) {
 
 		statVals[i] = val
 	}
+
+	stat := &BlockDeviceStat{}
 
 	// linux kernel doc states that there are 11 fields
 	// and underneath there is a table for 17

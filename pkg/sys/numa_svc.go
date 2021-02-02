@@ -1,19 +1,15 @@
 package sys
 
 import (
-	"os"
-	"path/filepath"
+	"io/ioutil"
+	"path"
 	"regexp"
 	"strconv"
 
 	"github.com/pkg/errors"
+
+	"github.com/onmetal/inventory/pkg/printer"
 )
-
-type NumaSvc struct{}
-
-func NewNumaSvc() *NumaSvc {
-	return &NumaSvc{}
-}
 
 const (
 	CNodeDevicePath = "/sys/devices/system/node"
@@ -23,44 +19,55 @@ const (
 
 var CNumericNodeDeviceDirNameRegexp = regexp.MustCompile(CNumericNodeDeviceDirNamePattern)
 
-func (ns *NumaSvc) GetNumaData() ([]NumaNode, error) {
+type NumaSvc struct {
+	printer        *printer.Svc
+	nodeDevicePath string
+}
+
+func NewNumaSvc(printer *printer.Svc, basePath string) *NumaSvc {
+	return &NumaSvc{
+		printer:        printer,
+		nodeDevicePath: path.Join(basePath, CNodeDevicePath),
+	}
+}
+
+func (s *NumaSvc) GetNumaData() ([]NumaNode, error) {
+	numaFolders, err := ioutil.ReadDir(s.nodeDevicePath)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to get list of numa node devices")
+	}
+
 	numaNodes := make([]NumaNode, 0)
+	for _, numaFolder := range numaFolders {
+		name := numaFolder.Name()
 
-	err := filepath.Walk(CNodeDevicePath, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return errors.Wrapf(err, "got error on directory traversal with path %s", path)
+		if !numaFolder.IsDir() {
+			continue
 		}
 
-		if !info.IsDir() {
-			return nil
-		}
-
-		groups := CNumericNodeDeviceDirNameRegexp.FindStringSubmatch(info.Name())
+		groups := CNumericNodeDeviceDirNameRegexp.FindStringSubmatch(name)
 
 		// String itself is always a first element in results
 		// so we need at least 2 to get number from our group
 		if len(groups) < 2 {
-			return nil
+			continue
 		}
 
 		nodeNumberString := groups[1]
 		nodeNumber, err := strconv.Atoi(nodeNumberString)
 		if err != nil {
-			return errors.Wrapf(err, "unable to convert node number string %s to int", nodeNumberString)
+			s.printer.VErr(errors.Wrapf(err, "unable to convert node number string %s to int", nodeNumberString))
+			continue
 		}
 
-		node, err := NewNumaNode(path, nodeNumber)
+		nodePath := path.Join(s.nodeDevicePath, name)
+		node, err := NewNumaNode(nodePath, nodeNumber)
 		if err != nil {
-			return errors.Wrapf(err, "unable to collect  %s", path)
+			s.printer.VErr(errors.Wrapf(err, "unable to collect  %s", nodePath))
+			continue
 		}
 
 		numaNodes = append(numaNodes, *node)
-
-		return nil
-	})
-
-	if err != nil {
-		return nil, errors.Wrapf(err, "unable to walk through %s folder contents", CNodeDevicePath)
 	}
 
 	return numaNodes, nil

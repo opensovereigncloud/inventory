@@ -6,6 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/onmetal/inventory/pkg/dev"
 	"github.com/onmetal/inventory/pkg/dmi"
 	"github.com/onmetal/inventory/pkg/flags"
 	"github.com/onmetal/inventory/pkg/ioctl"
@@ -50,11 +51,19 @@ func NewSvc() (*Svc, int) {
 	pciBusSvc := sys.NewPCIBusSvc(p, pciDevSvc)
 	pciSvc := sys.NewPCISvc(p, pciBusSvc, f.Root)
 
+	rawDmiSvc := dmi.NewRawDMISvc(f.Root)
+	dmiSvc := dmi.NewDMISvc(p, rawDmiSvc)
+	numaSvc := sys.NewNumaSvc(p, f.Root)
+
+	partitionTableSvc := dev.NewPartitionTableSvc(f.Root)
+	blockDeviceSvc := sys.NewBlockDeviceSvc(p, partitionTableSvc)
+	blockSvc := sys.NewBlockSvc(p, blockDeviceSvc, f.Root)
+
 	return &Svc{
 		printer:    p,
-		dmiSvc:     dmi.NewDMISvc(),
-		numaSvc:    sys.NewNumaSvc(),
-		blockSvc:   sys.NewBlockSvc(),
+		dmiSvc:     dmiSvc,
+		numaSvc:    numaSvc,
+		blockSvc:   blockSvc,
 		pciSvc:     pciSvc,
 		procSvc:    proc.NewProcSvc(),
 		lldpSvc:    run.NewLLDPSvc(),
