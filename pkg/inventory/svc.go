@@ -29,7 +29,8 @@ type Svc struct {
 	numaSvc    *sys.NumaSvc
 	blockSvc   *sys.BlockSvc
 	pciSvc     *sys.PCISvc
-	procSvc    *proc.Svc
+	cpuInfoSvc *proc.CPUInfoSvc
+	memInfoSvc *proc.MemInfoSvc
 	lldpSvc    *run.Svc
 	nicSvc     *sys.NICSvc
 	ipmiSvc    *ioctl.IPMISvc
@@ -47,17 +48,35 @@ func NewSvc() (*Svc, int) {
 		return nil, CErrRetCode
 	}
 
+	rawDmiSvc := dmi.NewRawDMISvc(f.Root)
+	dmiSvc := dmi.NewDMISvc(p, rawDmiSvc)
+
+	cpuInfoSvc := proc.NewCPUInfoSvc(p, f.Root)
+	memInfoSvc := proc.NewMemInfoSvc(p, f.Root)
+
+	numaStatSvc := sys.NewNumaStatSvc(p)
+	numaNodeSvc := sys.NewNumaNodeSvc(memInfoSvc, numaStatSvc)
+	numaSvc := sys.NewNumaSvc(p, numaNodeSvc, f.Root)
+
+	partitionTableSvc := dev.NewPartitionTableSvc(f.Root)
+	blockDeviceStatSvc := sys.NewBlockDeviceStatSvc(p)
+	blockDeviceSvc := sys.NewBlockDeviceSvc(p, partitionTableSvc, blockDeviceStatSvc)
+	blockSvc := sys.NewBlockSvc(p, blockDeviceSvc, f.Root)
+
 	pciDevSvc := sys.NewPCIDeviceSvc(p, pciIDs)
 	pciBusSvc := sys.NewPCIBusSvc(p, pciDevSvc)
 	pciSvc := sys.NewPCISvc(p, pciBusSvc, f.Root)
 
-	rawDmiSvc := dmi.NewRawDMISvc(f.Root)
-	dmiSvc := dmi.NewDMISvc(p, rawDmiSvc)
-	numaSvc := sys.NewNumaSvc(p, f.Root)
+	lldpFrameInfoSvc := run.NewLLDPFrameInfoSvc(p)
+	lldpSvc := run.NewLLDPSvc(p, lldpFrameInfoSvc, f.Root)
 
-	partitionTableSvc := dev.NewPartitionTableSvc(f.Root)
-	blockDeviceSvc := sys.NewBlockDeviceSvc(p, partitionTableSvc)
-	blockSvc := sys.NewBlockSvc(p, blockDeviceSvc, f.Root)
+	nicDevSvc := sys.NewNICDeviceSvc(p)
+	nicSvc := sys.NewNICSvc(p, nicDevSvc, f.Root)
+
+	ipmiDevInfoSvc := ioctl.NewIPMIDeviceInfoSvc(p)
+	ipmiSvc := ioctl.NewIPMISvc(p, ipmiDevInfoSvc, f.Root)
+
+	nlSvc := ioctl.NewNetlinkSvc(p, f.Root)
 
 	return &Svc{
 		printer:    p,
@@ -65,11 +84,12 @@ func NewSvc() (*Svc, int) {
 		numaSvc:    numaSvc,
 		blockSvc:   blockSvc,
 		pciSvc:     pciSvc,
-		procSvc:    proc.NewProcSvc(),
-		lldpSvc:    run.NewLLDPSvc(),
-		nicSvc:     sys.NewNICSvc(),
-		ipmiSvc:    ioctl.NewIPMISvc(),
-		netlinkSvc: ioctl.NewNetlinkSvc(),
+		cpuInfoSvc: cpuInfoSvc,
+		memInfoSvc: memInfoSvc,
+		lldpSvc:    lldpSvc,
+		nicSvc:     nicSvc,
+		ipmiSvc:    ipmiSvc,
+		netlinkSvc: nlSvc,
 	}, 0
 }
 
@@ -78,7 +98,8 @@ func (is *Svc) Inventorize() int {
 
 	setters := []func(inventory *Inventory) error{
 		is.setDMI,
-		is.setProc,
+		is.setCPUInfo,
+		is.setMemInfo,
 		is.setNumaNodes,
 		is.setBlockDevices,
 		is.setPCIBusDevices,
@@ -121,12 +142,21 @@ func (is *Svc) setDMI(inv *Inventory) error {
 	return nil
 }
 
-func (is *Svc) setProc(inv *Inventory) error {
-	data, err := is.procSvc.GetProcData()
+func (is *Svc) setCPUInfo(inv *Inventory) error {
+	data, err := is.cpuInfoSvc.GetCPUInfo()
 	if err != nil {
 		return errors.Wrap(err, "unable to get proc data")
 	}
-	inv.Proc = data
+	inv.CPUInfo = data
+	return nil
+}
+
+func (is *Svc) setMemInfo(inv *Inventory) error {
+	data, err := is.memInfoSvc.GetMemInfo()
+	if err != nil {
+		return errors.Wrap(err, "unable to get proc data")
+	}
+	inv.MemInfo = data
 	return nil
 }
 

@@ -3,9 +3,12 @@ package ioctl
 import (
 	"fmt"
 	"net"
+	"os"
 
 	"github.com/pkg/errors"
 	"github.com/u-root/u-root/pkg/ipmi"
+
+	"github.com/onmetal/inventory/pkg/printer"
 )
 
 const (
@@ -87,12 +90,30 @@ type IPMIDeviceInfo struct {
 	MACAddress      string
 }
 
-func NewIPMIDeviceInfo(num int) (*IPMIDeviceInfo, error) {
-	conn, err := ipmi.Open(num)
-	if err != nil {
-		return nil, err
+type IPMIDeviceInfoSvc struct {
+	printer *printer.Svc
+}
+
+func NewIPMIDeviceInfoSvc(printer *printer.Svc) *IPMIDeviceInfoSvc {
+	return &IPMIDeviceInfoSvc{
+		printer: printer,
 	}
-	defer conn.Close()
+}
+
+func (s *IPMIDeviceInfoSvc) GetIPMIDeviceInfo(thePath string) (*IPMIDeviceInfo, error) {
+	f, err := os.OpenFile(thePath, os.O_RDWR, 0)
+	if err != nil {
+		return nil, errors.Wrapf(err, "unable to open IPMI device file %s", thePath)
+	}
+
+	conn := &ipmi.IPMI{
+		File: f,
+	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			s.printer.VErr(errors.Wrapf(err, "unable to close file %s", thePath))
+		}
+	}()
 
 	info := &IPMIDeviceInfo{}
 
@@ -107,7 +128,7 @@ func NewIPMIDeviceInfo(num int) (*IPMIDeviceInfo, error) {
 	for _, def := range defs {
 		err := def(conn)
 		if err != nil {
-			// TODO handle errors
+			s.printer.VErr(errors.Wrap(err, "unable to set IPMI device info property"))
 		}
 	}
 

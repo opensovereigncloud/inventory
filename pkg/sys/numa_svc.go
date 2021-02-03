@@ -21,12 +21,14 @@ var CNumericNodeDeviceDirNameRegexp = regexp.MustCompile(CNumericNodeDeviceDirNa
 
 type NumaSvc struct {
 	printer        *printer.Svc
+	nodeSvc        *NumaNodeSvc
 	nodeDevicePath string
 }
 
-func NewNumaSvc(printer *printer.Svc, basePath string) *NumaSvc {
+func NewNumaSvc(printer *printer.Svc, nodeSvc *NumaNodeSvc, basePath string) *NumaSvc {
 	return &NumaSvc{
 		printer:        printer,
+		nodeSvc:        nodeSvc,
 		nodeDevicePath: path.Join(basePath, CNodeDevicePath),
 	}
 }
@@ -61,7 +63,7 @@ func (s *NumaSvc) GetNumaData() ([]NumaNode, error) {
 		}
 
 		nodePath := path.Join(s.nodeDevicePath, name)
-		node, err := NewNumaNode(nodePath, nodeNumber)
+		node, err := s.nodeSvc.GetNumaNode(nodePath, nodeNumber)
 		if err != nil {
 			s.printer.VErr(errors.Wrapf(err, "unable to collect  %s", nodePath))
 			continue

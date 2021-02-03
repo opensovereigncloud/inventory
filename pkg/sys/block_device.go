@@ -93,14 +93,16 @@ type BlockDevice struct {
 }
 
 type BlockDeviceSvc struct {
-	printer           *printer.Svc
-	partitionTableSvc *dev.PartitionTableSvc
+	printer            *printer.Svc
+	partitionTableSvc  *dev.PartitionTableSvc
+	blockDeviceStatSvc *BlockDeviceStatSvc
 }
 
-func NewBlockDeviceSvc(printer *printer.Svc, partTableSvc *dev.PartitionTableSvc) *BlockDeviceSvc {
+func NewBlockDeviceSvc(printer *printer.Svc, partTableSvc *dev.PartitionTableSvc, blockDeviceStatSvc *BlockDeviceStatSvc) *BlockDeviceSvc {
 	return &BlockDeviceSvc{
-		printer:           printer,
-		partitionTableSvc: partTableSvc,
+		printer:            printer,
+		partitionTableSvc:  partTableSvc,
+		blockDeviceStatSvc: blockDeviceStatSvc,
 	}
 }
 
@@ -335,7 +337,7 @@ func (s *BlockDeviceSvc) defPartitionTable(bd *BlockDevice) error {
 }
 
 func (s *BlockDeviceSvc) defStat(bd *BlockDevice) error {
-	stat, err := NewBlockDeviceStat(bd.path)
+	stat, err := s.blockDeviceStatSvc.GetBlockDeviceStat(bd.path)
 	if err != nil {
 		return errors.Wrap(err, "unable to collect stats")
 	}

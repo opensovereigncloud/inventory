@@ -9,6 +9,8 @@ import (
 
 	"github.com/mdlayher/lldp"
 	"github.com/pkg/errors"
+
+	"github.com/onmetal/inventory/pkg/printer"
 )
 
 type LLDPFrameInfo struct {
@@ -24,7 +26,17 @@ type LLDPFrameInfo struct {
 	TTL                 time.Duration
 }
 
-func NewLLDPFrameInfo(interfaceID string, thePath string) (*LLDPFrameInfo, error) {
+type LLDPFrameInfoSvc struct {
+	printer *printer.Svc
+}
+
+func NewLLDPFrameInfoSvc(printer *printer.Svc) *LLDPFrameInfoSvc {
+	return &LLDPFrameInfoSvc{
+		printer: printer,
+	}
+}
+
+func (s *LLDPFrameInfoSvc) GetLLDPFrameInfo(interfaceID string, thePath string) (*LLDPFrameInfo, error) {
 	contents, err := ioutil.ReadFile(thePath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "unable to read file %s", thePath)
@@ -46,18 +58,18 @@ func NewLLDPFrameInfo(interfaceID string, thePath string) (*LLDPFrameInfo, error
 
 	err = frameInfo.setChassisID(frame.ChassisID)
 	if err != nil {
-		return nil, errors.Wrap(err, "unable to set chassis ID")
+		s.printer.VErr(errors.Wrap(err, "unable to set chassis ID"))
 	}
 
 	err = frameInfo.setPortID(frame.PortID)
 	if err != nil {
-		return nil, errors.Wrap(err, "unable to unmarshal port ID")
+		s.printer.VErr(errors.Wrap(err, "unable to unmarshal port ID"))
 	}
 
 	for _, tlv := range frame.Optional {
 		err = frameInfo.setOptional(tlv)
 		if err != nil {
-			return nil, errors.Wrap(err, "unable to process optional TLV")
+			s.printer.VErr(errors.Wrap(err, "unable to process optional TLV"))
 		}
 	}
 
@@ -142,6 +154,8 @@ func (f *LLDPFrameInfo) setOptional(tlv *lldp.TLV) error {
 		}
 		// there is also lldp.TLVTypeOrganizationSpecific
 		// not collecting it for now
+	default:
+		return errors.Errorf("unhandled TLV type %d", tlv.Type)
 	}
 
 	return nil

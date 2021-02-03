@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+
+	"github.com/onmetal/inventory/pkg/printer"
 )
 
 // https://www.kernel.org/doc/Documentation/block/stat.txt
@@ -35,7 +37,17 @@ type BlockDeviceStat struct {
 	FlushTicks     uint64
 }
 
-func NewBlockDeviceStat(thePath string) (*BlockDeviceStat, error) {
+type BlockDeviceStatSvc struct {
+	printer *printer.Svc
+}
+
+func NewBlockDeviceStatSvc(printer *printer.Svc) *BlockDeviceStatSvc {
+	return &BlockDeviceStatSvc{
+		printer: printer,
+	}
+}
+
+func (s *BlockDeviceStatSvc) GetBlockDeviceStat(thePath string) (*BlockDeviceStat, error) {
 	statPath := path.Join(thePath, CStatPath)
 	contents, err := ioutil.ReadFile(statPath)
 	if err != nil {
@@ -51,7 +63,8 @@ func NewBlockDeviceStat(thePath string) (*BlockDeviceStat, error) {
 	for i, field := range fields {
 		val, err := strconv.ParseUint(field, 10, 64)
 		if err != nil {
-			return nil, errors.Wrapf(err, "unable to convert to uint64 %s", field)
+			s.printer.VErr(errors.Wrapf(err, "unable to convert to uint64 %s", field))
+			val = 0
 		}
 
 		statVals[i] = val
@@ -63,7 +76,9 @@ func NewBlockDeviceStat(thePath string) (*BlockDeviceStat, error) {
 	// and underneath there is a table for 17
 	// guess, we need to check this for the backward compatibility
 	for i, val := range statVals {
-		stat.setByIndex(i, val)
+		if err := stat.setByIndex(i, val); err != nil {
+			s.printer.VErr(errors.Wrapf(err, "unable to set value %d on index %d", val, i))
+		}
 	}
 
 	return stat, nil

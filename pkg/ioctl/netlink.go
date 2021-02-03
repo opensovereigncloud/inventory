@@ -3,15 +3,30 @@ package ioctl
 import (
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
+
+	"github.com/onmetal/inventory/pkg/printer"
 )
 
-type NetlinkSvc struct{}
-
-func NewNetlinkSvc() *NetlinkSvc {
-	return &NetlinkSvc{}
+type NetlinkSvc struct {
+	printer  *printer.Svc
+	rootPath string
 }
 
-func (n *NetlinkSvc) GetIPv6NeighbourData() ([]IPv6Neighbour, error) {
+func NewNetlinkSvc(printer *printer.Svc, basePath string) *NetlinkSvc {
+	return &NetlinkSvc{
+		printer:  printer,
+		rootPath: basePath,
+	}
+}
+
+func (s *NetlinkSvc) GetIPv6NeighbourData() ([]IPv6Neighbour, error) {
+	chroot, err := NewChroot(s.rootPath)
+	defer func() {
+		if err := chroot.Close(); err != nil {
+			s.printer.VErr(errors.Wrapf(err, "unable to exit chroot"))
+		}
+	}()
+
 	ll, err := netlink.LinkList()
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to obtain device list")
@@ -23,8 +38,8 @@ func (n *NetlinkSvc) GetIPv6NeighbourData() ([]IPv6Neighbour, error) {
 		iName := l.Attrs().Name
 		nl, err := netlink.NeighList(iIdx, netlink.FAMILY_V6)
 		if err != nil {
-			// TODO: continue instead of return
-			return nil, errors.Wrapf(err, "unable to get neighbours for %s", iName)
+			s.printer.VErr(errors.Wrapf(err, "unable to get neighbours for %s", iName))
+			continue
 		}
 
 		for _, n := range nl {
