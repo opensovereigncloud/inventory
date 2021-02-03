@@ -2,50 +2,56 @@ package ioctl
 
 import (
 	"io/ioutil"
+	"path"
 	"regexp"
-	"strconv"
 
 	"github.com/pkg/errors"
+
+	"github.com/onmetal/inventory/pkg/printer"
 )
 
 const (
 	CDevPath        = "/dev"
-	CIPMIDevPattern = "ipmi(\\d+)"
+	CIPMIDevPattern = "ipmi\\d+"
 )
 
 var CIPMIDevRegexp = regexp.MustCompile(CIPMIDevPattern)
 
-type IPMISvc struct{}
+type IPMISvc struct {
+	printer     *printer.Svc
+	ipmiInfoSvc *IPMIDeviceInfoSvc
+	devPath     string
+}
 
-func NewIPMISvc() *IPMISvc {
-	return &IPMISvc{}
+func NewIPMISvc(printer *printer.Svc, ipmiDevInfoSvc *IPMIDeviceInfoSvc, basePath string) *IPMISvc {
+	return &IPMISvc{
+		printer:     printer,
+		ipmiInfoSvc: ipmiDevInfoSvc,
+		devPath:     path.Join(basePath, CDevPath),
+	}
 }
 
 func (s *IPMISvc) GetIPMIData() ([]IPMIDeviceInfo, error) {
-	devFolderContents, err := ioutil.ReadDir(CDevPath)
+	devFolderContents, err := ioutil.ReadDir(s.devPath)
 	if err != nil {
-		return nil, errors.Wrapf(err, "unable to read contents of %s", CDevPath)
+		return nil, errors.Wrapf(err, "unable to read contents of %s", s.devPath)
 	}
 
 	infos := make([]IPMIDeviceInfo, 0)
 	for _, dev := range devFolderContents {
 		devName := dev.Name()
 
-		groups := CIPMIDevRegexp.FindStringSubmatch(devName)
+		matches := CIPMIDevRegexp.MatchString(devName)
 
-		if len(groups) != 2 {
+		if !matches {
 			continue
 		}
 
-		numStr := groups[1]
-		num, err := strconv.Atoi(numStr)
+		thePath := path.Join(s.devPath, devName)
+		info, err := s.ipmiInfoSvc.GetIPMIDeviceInfo(thePath)
 		if err != nil {
-			return nil, errors.Wrapf(err, "unabale to convert %s to int", numStr)
-		}
-
-		info, err := NewIPMIDeviceInfo(num)
-		if err != nil {
-			return nil, errors.Wrapf(err, "unabale to convert %s to int", numStr)
+			s.printer.VErr(errors.Wrap(err, "unabale to obtain IPMI device info"))
+			continue
 		}
 
 		infos = append(infos, *info)

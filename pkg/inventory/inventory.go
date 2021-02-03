@@ -10,7 +10,8 @@ import (
 
 type Inventory struct {
 	DMI           *dmi.DMI
-	Proc          *proc.Proc
+	MemInfo       *proc.MemInfo
+	CPUInfo       []proc.CPUInfo
 	NumaNodes     []sys.NumaNode
 	BlockDevices  []sys.BlockDevice
 	PCIBusDevices []sys.PCIBus

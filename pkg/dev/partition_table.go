@@ -24,8 +24,18 @@ type PartitionTable struct {
 	Partitions []Partition
 }
 
-func NewPartitionTable(devName string) (*PartitionTable, error) {
-	devPath := path.Join(CDevBasePath, devName)
+type PartitionTableSvc struct {
+	devPath string
+}
+
+func NewPartitionTableSvc(basePath string) *PartitionTableSvc {
+	return &PartitionTableSvc{
+		devPath: path.Join(basePath, CDevBasePath),
+	}
+}
+
+func (s *PartitionTableSvc) GetPartitionTable(devName string) (*PartitionTable, error) {
+	devPath := path.Join(s.devPath, devName)
 	disk, err := diskfs.OpenWithMode(devPath, diskfs.ReadOnly)
 	if err != nil {
 		return nil, errors.Wrapf(err, "unable to open device %s", devPath)

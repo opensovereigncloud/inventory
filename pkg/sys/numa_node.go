@@ -8,11 +8,14 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+
+	"github.com/onmetal/inventory/pkg/proc"
 )
 
 const (
 	CNodeCPUListPath  = "/cpulist"
 	CNodeDistancePath = "/distance"
+	CNodeMemInfo      = "/meminfo"
 
 	CDistanceTrimPattern = "\\D+"
 	CCPUListTrimPattern  = "[^0-9\\-,]"
@@ -25,11 +28,23 @@ type NumaNode struct {
 	ID       int
 	CPUs     []int
 	Distance int
-	Memory   *NumaMemory
+	Memory   *proc.MemInfo
 	Stat     *NumaStat
 }
 
-func NewNumaNode(thePath string, nodeId int) (*NumaNode, error) {
+type NumaNodeSvc struct {
+	memInfoSvc *proc.MemInfoSvc
+	statSvc    *NumaStatSvc
+}
+
+func NewNumaNodeSvc(memInfoSvc *proc.MemInfoSvc, statSvc *NumaStatSvc) *NumaNodeSvc {
+	return &NumaNodeSvc{
+		memInfoSvc: memInfoSvc,
+		statSvc:    statSvc,
+	}
+}
+
+func (s *NumaNodeSvc) GetNumaNode(thePath string, nodeId int) (*NumaNode, error) {
 	distancePath := path.Join(thePath, CNodeDistancePath)
 	distanceData, err := ioutil.ReadFile(distancePath)
 	if err != nil {
@@ -82,12 +97,13 @@ func NewNumaNode(thePath string, nodeId int) (*NumaNode, error) {
 		}
 	}
 
-	mem, err := NewNumaMemory(thePath)
+	memPath := path.Join(thePath, CNodeMemInfo)
+	mem, err := s.memInfoSvc.GetMemInfoFromFile(memPath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "unable to obtain meminfo for %s", thePath)
 	}
 
-	stat, err := NewNumaStat(thePath)
+	stat, err := s.statSvc.GetNumaStat(thePath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "unable to obtain stat for %s", thePath)
 	}

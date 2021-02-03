@@ -9,6 +9,8 @@ import (
 	"strconv"
 
 	"github.com/pkg/errors"
+
+	"github.com/onmetal/inventory/pkg/printer"
 )
 
 const (
@@ -35,7 +37,17 @@ type NumaStat struct {
 	OtherNode     uint64
 }
 
-func NewNumaStat(thePath string) (*NumaStat, error) {
+type NumaStatSvc struct {
+	printer *printer.Svc
+}
+
+func NewNumaStatSvc(printer *printer.Svc) *NumaStatSvc {
+	return &NumaStatSvc{
+		printer: printer,
+	}
+}
+
+func (s *NumaStatSvc) GetNumaStat(thePath string) (*NumaStat, error) {
 	statPath := path.Join(thePath, CNodeStat)
 	statData, err := ioutil.ReadFile(statPath)
 	if err != nil {
@@ -61,12 +73,13 @@ func NewNumaStat(thePath string) (*NumaStat, error) {
 
 		val, err := strconv.ParseUint(valString, 10, 64)
 		if err != nil {
-			return nil, errors.Wrapf(err, "unable to parse %s:%s into uint64", key, valString)
+			s.printer.VErr(errors.Wrapf(err, "unable to parse %s:%s into uint64", key, valString))
+			continue
 		}
 
 		err = stat.setField(key, val)
 		if err != nil {
-			return nil, errors.Wrapf(err, "unable to set %s:%d", key, val)
+			s.printer.VErr(errors.Wrapf(err, "unable to set %s:%d", key, val))
 		}
 	}
 

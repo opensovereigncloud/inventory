@@ -6,39 +6,48 @@ import (
 	"github.com/digitalocean/go-smbios/smbios"
 	"github.com/lunixbochs/struc"
 	"github.com/pkg/errors"
+
+	"github.com/onmetal/inventory/pkg/printer"
 )
 
-type Svc struct{}
-
-func NewDMISvc() *Svc {
-	return &Svc{}
+type Svc struct {
+	printer   *printer.Svc
+	RawDMISvc *RawDMISvc
 }
 
-func (ds *Svc) GetDMIData() (*DMI, error) {
-	stream, entryPoint, err := smbios.Stream()
+func NewDMISvc(printer *printer.Svc, rawDMISvc *RawDMISvc) *Svc {
+	return &Svc{
+		printer:   printer,
+		RawDMISvc: rawDMISvc,
+	}
+}
+
+func (s *Svc) GetDMIData() (*DMI, error) {
+	rawDmi, err := s.RawDMISvc.GetRawDMI()
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to get SMBIOS stream")
 	}
 
-	defer stream.Close()
+	defer rawDmi.Stream.Close()
 
-	decoder := smbios.NewDecoder(stream)
+	decoder := smbios.NewDecoder(rawDmi.Stream)
 	structures, err := decoder.Decode()
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to decode SMBIOS stream")
 	}
 
-	version := NewSMBIOSVersion(entryPoint.Version())
+	version := NewSMBIOSVersion(rawDmi.EntryPoint.Version())
 
 	dmi := &DMI{
 		Version: version,
 	}
+
 	for _, structure := range structures {
 		switch structure.Header.Type {
 		case CSystemInformationHeaderType:
-			systemInfo, err := ds.parseSystemInformation(structure, version)
+			systemInfo, err := s.parseSystemInformation(structure, version)
 			if err != nil {
-				return nil, errors.Wrap(err, "unable to parse system info")
+				s.printer.VErr(errors.Wrap(err, "unable to parse system info"))
 			}
 			dmi.SystemInformation = systemInfo
 		}
@@ -47,7 +56,7 @@ func (ds *Svc) GetDMIData() (*DMI, error) {
 	return dmi, nil
 }
 
-func (ds *Svc) parseSystemInformation(structure *smbios.Structure, version *SMBIOSVersion) (*SystemInformation, error) {
+func (s *Svc) parseSystemInformation(structure *smbios.Structure, version *SMBIOSVersion) (*SystemInformation, error) {
 	// Spec contains info only for 2.0+
 	if version.Lesser(&SMBIOSVersion{2, 0, 0}) {
 		return &SystemInformation{}, nil

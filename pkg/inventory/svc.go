@@ -3,54 +3,103 @@ package inventory
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 
 	"github.com/pkg/errors"
 
+	"github.com/onmetal/inventory/pkg/dev"
 	"github.com/onmetal/inventory/pkg/dmi"
+	"github.com/onmetal/inventory/pkg/flags"
 	"github.com/onmetal/inventory/pkg/ioctl"
+	"github.com/onmetal/inventory/pkg/pci"
+	"github.com/onmetal/inventory/pkg/printer"
 	"github.com/onmetal/inventory/pkg/proc"
 	"github.com/onmetal/inventory/pkg/run"
 	"github.com/onmetal/inventory/pkg/sys"
 )
 
+const (
+	COKRetCode  = 0
+	CErrRetCode = -1
+)
+
 type Svc struct {
+	printer *printer.Svc
+
 	dmiSvc     *dmi.Svc
 	numaSvc    *sys.NumaSvc
 	blockSvc   *sys.BlockSvc
 	pciSvc     *sys.PCISvc
-	procSvc    *proc.Svc
+	cpuInfoSvc *proc.CPUInfoSvc
+	memInfoSvc *proc.MemInfoSvc
 	lldpSvc    *run.Svc
 	nicSvc     *sys.NICSvc
 	ipmiSvc    *ioctl.IPMISvc
 	netlinkSvc *ioctl.NetlinkSvc
 }
 
-func NewInventorySvc() *Svc {
-	pciSvc, err := sys.NewPCISvc()
+func NewSvc() (*Svc, int) {
+	f := flags.NewFlags()
+
+	p := printer.NewSvc(f.Verbose)
+
+	pciIDs, err := pci.NewPCIIds()
 	if err != nil {
-		panic(err)
+		p.Err(errors.Wrapf(err, "unable to load PCI IDs"))
+		return nil, CErrRetCode
 	}
+
+	rawDmiSvc := dmi.NewRawDMISvc(f.Root)
+	dmiSvc := dmi.NewDMISvc(p, rawDmiSvc)
+
+	cpuInfoSvc := proc.NewCPUInfoSvc(p, f.Root)
+	memInfoSvc := proc.NewMemInfoSvc(p, f.Root)
+
+	numaStatSvc := sys.NewNumaStatSvc(p)
+	numaNodeSvc := sys.NewNumaNodeSvc(memInfoSvc, numaStatSvc)
+	numaSvc := sys.NewNumaSvc(p, numaNodeSvc, f.Root)
+
+	partitionTableSvc := dev.NewPartitionTableSvc(f.Root)
+	blockDeviceStatSvc := sys.NewBlockDeviceStatSvc(p)
+	blockDeviceSvc := sys.NewBlockDeviceSvc(p, partitionTableSvc, blockDeviceStatSvc)
+	blockSvc := sys.NewBlockSvc(p, blockDeviceSvc, f.Root)
+
+	pciDevSvc := sys.NewPCIDeviceSvc(p, pciIDs)
+	pciBusSvc := sys.NewPCIBusSvc(p, pciDevSvc)
+	pciSvc := sys.NewPCISvc(p, pciBusSvc, f.Root)
+
+	lldpFrameInfoSvc := run.NewLLDPFrameInfoSvc(p)
+	lldpSvc := run.NewLLDPSvc(p, lldpFrameInfoSvc, f.Root)
+
+	nicDevSvc := sys.NewNICDeviceSvc(p)
+	nicSvc := sys.NewNICSvc(p, nicDevSvc, f.Root)
+
+	ipmiDevInfoSvc := ioctl.NewIPMIDeviceInfoSvc(p)
+	ipmiSvc := ioctl.NewIPMISvc(p, ipmiDevInfoSvc, f.Root)
+
+	nlSvc := ioctl.NewNetlinkSvc(p, f.Root)
 
 	return &Svc{
-		dmiSvc:     dmi.NewDMISvc(),
-		numaSvc:    sys.NewNumaSvc(),
-		blockSvc:   sys.NewBlockSvc(),
+		printer:    p,
+		dmiSvc:     dmiSvc,
+		numaSvc:    numaSvc,
+		blockSvc:   blockSvc,
 		pciSvc:     pciSvc,
-		procSvc:    proc.NewProcSvc(),
-		lldpSvc:    run.NewLLDPSvc(),
-		nicSvc:     sys.NewNICSvc(),
-		ipmiSvc:    ioctl.NewIPMISvc(),
-		netlinkSvc: ioctl.NewNetlinkSvc(),
-	}
+		cpuInfoSvc: cpuInfoSvc,
+		memInfoSvc: memInfoSvc,
+		lldpSvc:    lldpSvc,
+		nicSvc:     nicSvc,
+		ipmiSvc:    ipmiSvc,
+		netlinkSvc: nlSvc,
+	}, 0
 }
 
-func (is *Svc) Inventorize() {
+func (is *Svc) Inventorize() int {
 	inv := &Inventory{}
 
 	setters := []func(inventory *Inventory) error{
 		is.setDMI,
-		is.setProc,
+		is.setCPUInfo,
+		is.setMemInfo,
 		is.setNumaNodes,
 		is.setBlockDevices,
 		is.setPCIBusDevices,
@@ -63,23 +112,25 @@ func (is *Svc) Inventorize() {
 	for _, setter := range setters {
 		err := setter(inv)
 		if err != nil {
-
+			is.printer.VErr(errors.Wrap(err, "unable to set value"))
 		}
 	}
 
 	jsonBytes, err := json.Marshal(inv)
 	if err != nil {
-		fmt.Println(err)
-		return
+		is.printer.Err(errors.Wrap(err, "unable to marshal result to json"))
+		return CErrRetCode
 	}
 
 	var prettifiedJsonBuf bytes.Buffer
 	if err := json.Indent(&prettifiedJsonBuf, jsonBytes, "", "\t"); err != nil {
-		fmt.Println(err)
-		return
+		is.printer.Err(errors.Wrap(err, "unable to indent json"))
+		return CErrRetCode
 	}
 
-	fmt.Println(prettifiedJsonBuf.String())
+	is.printer.Out(prettifiedJsonBuf.String())
+
+	return COKRetCode
 }
 
 func (is *Svc) setDMI(inv *Inventory) error {
@@ -91,12 +142,21 @@ func (is *Svc) setDMI(inv *Inventory) error {
 	return nil
 }
 
-func (is *Svc) setProc(inv *Inventory) error {
-	data, err := is.procSvc.GetProcData()
+func (is *Svc) setCPUInfo(inv *Inventory) error {
+	data, err := is.cpuInfoSvc.GetCPUInfo()
 	if err != nil {
 		return errors.Wrap(err, "unable to get proc data")
 	}
-	inv.Proc = data
+	inv.CPUInfo = data
+	return nil
+}
+
+func (is *Svc) setMemInfo(inv *Inventory) error {
+	data, err := is.memInfoSvc.GetMemInfo()
+	if err != nil {
+		return errors.Wrap(err, "unable to get proc data")
+	}
+	inv.MemInfo = data
 	return nil
 }
 

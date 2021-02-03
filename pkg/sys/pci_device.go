@@ -8,6 +8,7 @@ import (
 
 	"github.com/onmetal/inventory/pkg/file"
 	"github.com/onmetal/inventory/pkg/pci"
+	"github.com/onmetal/inventory/pkg/printer"
 )
 
 const (
@@ -64,25 +65,37 @@ type PCIDevice struct {
 	ProgrammingInterface *PCIDeviceProgrammingInterface
 }
 
-func NewPCIDevice(thePath string, name string, ids *pci.IDs) (*PCIDevice, error) {
+type PCIDeviceSvc struct {
+	ids     *pci.IDs
+	printer *printer.Svc
+}
+
+func NewPCIDeviceSvc(printer *printer.Svc, ids *pci.IDs) *PCIDeviceSvc {
+	return &PCIDeviceSvc{
+		ids:     ids,
+		printer: printer,
+	}
+}
+
+func (s *PCIDeviceSvc) GetPCIDevice(basePath string, addr string) (*PCIDevice, error) {
 	device := &PCIDevice{
-		Address: name,
+		Address: addr,
 	}
 
-	err := device.defVendor(thePath, ids)
+	err := s.setVendor(device, basePath)
 	if err != nil {
-		return nil, errors.Wrap(err, "unable to set vendor branch")
+		s.printer.VErr(errors.Wrap(err, "unable to resolve vendor branch"))
 	}
 
-	err = device.defClass(thePath, ids)
+	err = s.setClass(device, basePath)
 	if err != nil {
-		return nil, errors.Wrap(err, "unable to set class branch")
+		s.printer.VErr(errors.Wrap(err, "unable to resolve class branch"))
 	}
 
 	return device, nil
 }
 
-func (d *PCIDevice) defVendor(thePath string, ids *pci.IDs) error {
+func (s *PCIDeviceSvc) setVendor(dev *PCIDevice, thePath string) error {
 	vendorPath := path.Join(thePath, CPCIDeviceVendorPath)
 	vendorString, err := file.ToString(vendorPath)
 	if err != nil {
@@ -90,25 +103,28 @@ func (d *PCIDevice) defVendor(thePath string, ids *pci.IDs) error {
 	}
 
 	vendorVal := vendorString[2:]
-	vendor, ok := ids.Vendors[vendorVal]
+	vendor, ok := s.ids.Vendors[vendorVal]
 	if !ok {
-		// return errors.Errorf("unknown vendor id %s", vendorVal)
-		return nil
+		return errors.Errorf("unknown vendor id %s", vendorVal)
 	}
 
-	d.Vendor = &PCIDeviceVendor{
+	dev.Vendor = &PCIDeviceVendor{
 		ID:   vendor.ID,
 		Name: vendor.Name,
 	}
 
-	if len(vendor.Devices) > 0 {
-		return d.defType(thePath, &vendor, ids)
+	if len(vendor.Devices) == 0 {
+		return nil
+	}
+
+	if err := s.setType(dev, thePath, &vendor); err != nil {
+		return errors.Wrapf(err, "unable to resolve device/type branch for vendor %s, %s", vendor.ID, vendor.Name)
 	}
 
 	return nil
 }
 
-func (d *PCIDevice) defType(thePath string, vendor *pci.Vendor, ids *pci.IDs) error {
+func (s *PCIDeviceSvc) setType(dev *PCIDevice, thePath string, vendor *pci.Vendor) error {
 	typePath := path.Join(thePath, CPCIDeviceTypePath)
 	typeString, err := file.ToString(typePath)
 	if err != nil {
@@ -118,23 +134,26 @@ func (d *PCIDevice) defType(thePath string, vendor *pci.Vendor, ids *pci.IDs) er
 	typeVal := typeString[2:]
 	theType, ok := vendor.Devices[typeVal]
 	if !ok {
-		// return errors.Errorf("unknown device/type id %s", typeVal)
-		return nil
+		return errors.Errorf("unknown device/type id %s", typeVal)
 	}
 
-	d.Type = &PCIDeviceType{
+	dev.Type = &PCIDeviceType{
 		ID:   theType.ID,
 		Name: theType.Name,
 	}
 
-	if len(theType.Subsystems) > 0 {
-		return d.defSubsystem(thePath, &theType, ids)
+	if len(theType.Subsystems) == 0 {
+		return nil
+	}
+
+	if err := s.setSubsystem(dev, thePath, &theType); err != nil {
+		return errors.Wrapf(err, "unable to resolve subsystem branch for device %s, %s", theType.ID, theType.Name)
 	}
 
 	return nil
 }
 
-func (d *PCIDevice) defSubsystem(thePath string, theType *pci.Device, ids *pci.IDs) error {
+func (s *PCIDeviceSvc) setSubsystem(dev *PCIDevice, thePath string, theType *pci.Device) error {
 	subDevicePath := path.Join(thePath, CPCIDeviceSubsystemDevicePath)
 	subDeviceString, err := file.ToString(subDevicePath)
 	if err != nil {
@@ -151,23 +170,20 @@ func (d *PCIDevice) defSubsystem(thePath string, theType *pci.Device, ids *pci.I
 
 	subsystem, ok := theType.Subsystems[subVendorVal+subDeviceVal]
 	if !ok {
-		// TODO think how to log undiscovered items and report them to PCI IDs maintainers
-		// return errors.Errorf("unknown subsystem id %s %s", subVendorVal, subDeviceVal)
-		return nil
+		return errors.Errorf("unknown subsystem id %s %s", subVendorVal, subDeviceVal)
 	}
 
-	d.Subtype = &PCIDeviceSubtype{
+	dev.Subtype = &PCIDeviceSubtype{
 		ID:   subsystem.SubdeviceID,
 		Name: subsystem.Name,
 	}
 
-	subvendor, ok := ids.Vendors[subVendorVal]
+	subvendor, ok := s.ids.Vendors[subVendorVal]
 	if !ok {
-		// return errors.Errorf("unknown vendor id %s", subVendorVal)
-		return nil
+		return errors.Errorf("unknown subsystem vendor id %s", subVendorVal)
 	}
 
-	d.Subvendor = &PCIDeviceVendor{
+	dev.Subvendor = &PCIDeviceVendor{
 		ID:   subvendor.ID,
 		Name: subvendor.Name,
 	}
@@ -175,7 +191,7 @@ func (d *PCIDevice) defSubsystem(thePath string, theType *pci.Device, ids *pci.I
 	return nil
 }
 
-func (d *PCIDevice) defClass(thePath string, ids *pci.IDs) error {
+func (s *PCIDeviceSvc) setClass(dev *PCIDevice, thePath string) error {
 	classPath := path.Join(thePath, CPCIDeviceClassPath)
 	classString, err := file.ToString(classPath)
 	if err != nil {
@@ -187,12 +203,13 @@ func (d *PCIDevice) defClass(thePath string, ids *pci.IDs) error {
 	subclassVal := groups[2]
 	ifaceVal := groups[3]
 
-	class, ok := ids.Classes[classVal]
-	if ok {
-		d.Class = &PCIDeviceClass{
-			ID:   class.ID,
-			Name: class.Name,
-		}
+	class, ok := s.ids.Classes[classVal]
+	if !ok {
+		return errors.Errorf("unknown device class %s", classVal)
+	}
+	dev.Class = &PCIDeviceClass{
+		ID:   class.ID,
+		Name: class.Name,
 	}
 
 	if len(class.Subclasses) == 0 {
@@ -200,11 +217,12 @@ func (d *PCIDevice) defClass(thePath string, ids *pci.IDs) error {
 	}
 
 	subclass, ok := class.Subclasses[subclassVal]
-	if ok {
-		d.Subclass = &PCIDeviceSubclass{
-			ID:   subclass.ID,
-			Name: subclass.Name,
-		}
+	if !ok {
+		return errors.Errorf("unknown device subclass %s in class %s %s", subclassVal, class.ID, class.Name)
+	}
+	dev.Subclass = &PCIDeviceSubclass{
+		ID:   subclass.ID,
+		Name: subclass.Name,
 	}
 
 	if len(subclass.ProgrammingInterfaces) == 0 {
@@ -212,11 +230,13 @@ func (d *PCIDevice) defClass(thePath string, ids *pci.IDs) error {
 	}
 
 	iface, ok := subclass.ProgrammingInterfaces[ifaceVal]
-	if ok {
-		d.ProgrammingInterface = &PCIDeviceProgrammingInterface{
-			ID:   iface.ID,
-			Name: iface.Name,
-		}
+	if !ok {
+		return errors.Errorf("unknown device programming interface %s in subclass %s %s in class %s %s",
+			ifaceVal, subclass.ID, subclass.Name, class.ID, class.Name)
+	}
+	dev.ProgrammingInterface = &PCIDeviceProgrammingInterface{
+		ID:   iface.ID,
+		Name: iface.Name,
 	}
 
 	return nil

@@ -4,11 +4,14 @@ import (
 	"bufio"
 	"bytes"
 	"io/ioutil"
+	"path"
 	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
+
+	"github.com/onmetal/inventory/pkg/printer"
 )
 
 const (
@@ -174,10 +177,22 @@ func (ci *CPUInfo) setField(key string, val string) error {
 	return nil
 }
 
-func NewCPUInfo() ([]CPUInfo, error) {
-	memInfoData, err := ioutil.ReadFile(CCPUInfoPath)
+type CPUInfoSvc struct {
+	printer     *printer.Svc
+	cpuInfoPath string
+}
+
+func NewCPUInfoSvc(printer *printer.Svc, basePath string) *CPUInfoSvc {
+	return &CPUInfoSvc{
+		printer:     printer,
+		cpuInfoPath: path.Join(basePath, CCPUInfoPath),
+	}
+}
+
+func (s *CPUInfoSvc) GetCPUInfo() ([]CPUInfo, error) {
+	memInfoData, err := ioutil.ReadFile(s.cpuInfoPath)
 	if err != nil {
-		return nil, errors.Wrapf(err, "unable to read meminfo from %s", CCPUInfoPath)
+		return nil, errors.Wrapf(err, "unable to read meminfo from %s", s.cpuInfoPath)
 	}
 
 	cpus := make([]CPUInfo, 0)
@@ -208,7 +223,7 @@ func NewCPUInfo() ([]CPUInfo, error) {
 		err = cpu.setField(key, val)
 
 		if err != nil {
-			return nil, errors.Wrapf(err, "unable to set field %s with value %s", key, val)
+			s.printer.VErr(errors.Wrapf(err, "unable to set field %s with value %s", key, val))
 		}
 	}
 

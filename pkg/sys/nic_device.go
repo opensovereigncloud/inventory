@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/onmetal/inventory/pkg/file"
+	"github.com/onmetal/inventory/pkg/printer"
 )
 
 const (
@@ -115,7 +116,17 @@ type NIC struct {
 	Type                CNICType
 }
 
-func NewNIC(thePath string, name string) (*NIC, error) {
+type NICDeviceSvc struct {
+	printer *printer.Svc
+}
+
+func NewNICDeviceSvc(printer *printer.Svc) *NICDeviceSvc {
+	return &NICDeviceSvc{
+		printer: printer,
+	}
+}
+
+func (s *NICDeviceSvc) GetNIC(thePath string, name string) (*NIC, error) {
 	nic := &NIC{
 		Name: name,
 	}
@@ -154,7 +165,7 @@ func NewNIC(thePath string, name string) (*NIC, error) {
 	for _, def := range defs {
 		err := def(thePath)
 		if err != nil {
-			// TODO: handle errors in verbose mode when implemented
+			s.printer.VErr(errors.Wrap(err, "unable to set NIC property"))
 		}
 	}
 

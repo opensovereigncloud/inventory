@@ -8,6 +8,7 @@ import (
 
 	"github.com/onmetal/inventory/pkg/dev"
 	"github.com/onmetal/inventory/pkg/file"
+	"github.com/onmetal/inventory/pkg/printer"
 )
 
 const (
@@ -91,45 +92,57 @@ type BlockDevice struct {
 	Stat              *BlockDeviceStat
 }
 
-func NewBlockDevice(thePath string, name string) (*BlockDevice, error) {
+type BlockDeviceSvc struct {
+	printer            *printer.Svc
+	partitionTableSvc  *dev.PartitionTableSvc
+	blockDeviceStatSvc *BlockDeviceStatSvc
+}
+
+func NewBlockDeviceSvc(printer *printer.Svc, partTableSvc *dev.PartitionTableSvc, blockDeviceStatSvc *BlockDeviceStatSvc) *BlockDeviceSvc {
+	return &BlockDeviceSvc{
+		printer:            printer,
+		partitionTableSvc:  partTableSvc,
+		blockDeviceStatSvc: blockDeviceStatSvc,
+	}
+}
+
+func (s *BlockDeviceSvc) GetBlockDevice(thePath string, name string) (*BlockDevice, error) {
 	device := &BlockDevice{
 		path: thePath,
 		Name: name,
 	}
 
-	defs := []func() error{
-		device.defType,
-		device.defRotational,
-		device.defRemovable,
-		device.defReadOnly,
-		device.defVendor,
-		device.defModel,
-		device.defSerial,
-		device.defWWID,
-		device.defFirmwareRev,
-		device.defState,
-		device.defHWSectorSize,
-		device.defPhysicalBlockSize,
-		device.defLogicalBlockSize,
-		device.defSize,
-		device.defNumaNodeID,
-		device.defPartitionTable,
-		device.defStat,
+	defs := []func(*BlockDevice) error{
+		s.defType,
+		s.defRotational,
+		s.defRemovable,
+		s.defReadOnly,
+		s.defVendor,
+		s.defModel,
+		s.defSerial,
+		s.defWWID,
+		s.defFirmwareRev,
+		s.defState,
+		s.defHWSectorSize,
+		s.defPhysicalBlockSize,
+		s.defLogicalBlockSize,
+		s.defSize,
+		s.defNumaNodeID,
+		s.defPartitionTable,
+		s.defStat,
 	}
 
-	errs := make([]error, 0)
-
 	for _, def := range defs {
-		err := def()
+		err := def(device)
 		if err != nil {
-			errs = append(errs, err)
+			s.printer.VErr(errors.Wrap(err, "unable to set block device property"))
 		}
 	}
 
 	return device, nil
 }
 
-func (bd *BlockDevice) defType() error {
+func (s *BlockDeviceSvc) defType(bd *BlockDevice) error {
 	for k, v := range CDiskMap {
 		if v.MatchString(bd.Name) {
 			bd.Type = k
@@ -144,7 +157,7 @@ func (bd *BlockDevice) defType() error {
 	return nil
 }
 
-func (bd *BlockDevice) defRotational() error {
+func (s *BlockDeviceSvc) defRotational(bd *BlockDevice) error {
 	rotationalPath := path.Join(bd.path, CQueueRotationalPath)
 	rotational, err := file.ToBool(rotationalPath)
 	if err != nil {
@@ -156,7 +169,7 @@ func (bd *BlockDevice) defRotational() error {
 	return nil
 }
 
-func (bd *BlockDevice) defVendor() error {
+func (s *BlockDeviceSvc) defVendor(bd *BlockDevice) error {
 	vendorPath := path.Join(bd.path, CDeviceVendorPath)
 	vendor, err := file.ToString(vendorPath)
 	if err != nil {
@@ -168,7 +181,7 @@ func (bd *BlockDevice) defVendor() error {
 	return nil
 }
 
-func (bd *BlockDevice) defModel() error {
+func (s *BlockDeviceSvc) defModel(bd *BlockDevice) error {
 	modelPath := path.Join(bd.path, CDeviceModelPath)
 	model, err := file.ToString(modelPath)
 	if err != nil {
@@ -180,7 +193,7 @@ func (bd *BlockDevice) defModel() error {
 	return nil
 }
 
-func (bd *BlockDevice) defWWID() error {
+func (s *BlockDeviceSvc) defWWID(bd *BlockDevice) error {
 	wwidPath := path.Join(bd.path, CWWIDPath)
 	wwid, err := file.ToString(wwidPath)
 	if err != nil {
@@ -192,7 +205,7 @@ func (bd *BlockDevice) defWWID() error {
 	return nil
 }
 
-func (bd *BlockDevice) defRemovable() error {
+func (s *BlockDeviceSvc) defRemovable(bd *BlockDevice) error {
 	removablePath := path.Join(bd.path, CRemovablePath)
 	removable, err := file.ToBool(removablePath)
 	if err != nil {
@@ -204,7 +217,7 @@ func (bd *BlockDevice) defRemovable() error {
 	return nil
 }
 
-func (bd *BlockDevice) defSerial() error {
+func (s *BlockDeviceSvc) defSerial(bd *BlockDevice) error {
 	serialPath := path.Join(bd.path, CDeviceSerialPath)
 	serial, err := file.ToString(serialPath)
 	if err != nil {
@@ -216,7 +229,7 @@ func (bd *BlockDevice) defSerial() error {
 	return nil
 }
 
-func (bd *BlockDevice) defSize() error {
+func (s *BlockDeviceSvc) defSize(bd *BlockDevice) error {
 	sizePath := path.Join(bd.path, CSizePath)
 	size, err := file.ToUint64(sizePath)
 	if err != nil {
@@ -228,7 +241,7 @@ func (bd *BlockDevice) defSize() error {
 	return nil
 }
 
-func (bd *BlockDevice) defPhysicalBlockSize() error {
+func (s *BlockDeviceSvc) defPhysicalBlockSize(bd *BlockDevice) error {
 	blockSizePath := path.Join(bd.path, CQueuePhysicalBlockSizePath)
 	blockSize, err := file.ToUint64(blockSizePath)
 	if err != nil {
@@ -240,7 +253,7 @@ func (bd *BlockDevice) defPhysicalBlockSize() error {
 	return nil
 }
 
-func (bd *BlockDevice) defLogicalBlockSize() error {
+func (s *BlockDeviceSvc) defLogicalBlockSize(bd *BlockDevice) error {
 	blockSizePath := path.Join(bd.path, CQueueLogicalBlockSizePath)
 	blockSize, err := file.ToUint64(blockSizePath)
 	if err != nil {
@@ -252,7 +265,7 @@ func (bd *BlockDevice) defLogicalBlockSize() error {
 	return nil
 }
 
-func (bd *BlockDevice) defHWSectorSize() error {
+func (s *BlockDeviceSvc) defHWSectorSize(bd *BlockDevice) error {
 	sectorSizePath := path.Join(bd.path, CQueueHWSectorSizePath)
 	sectorSize, err := file.ToUint64(sectorSizePath)
 	if err != nil {
@@ -264,7 +277,7 @@ func (bd *BlockDevice) defHWSectorSize() error {
 	return nil
 }
 
-func (bd *BlockDevice) defNumaNodeID() error {
+func (s *BlockDeviceSvc) defNumaNodeID(bd *BlockDevice) error {
 	numaPath := path.Join(bd.path, CDeviceNumaNodePath)
 	numa, err := file.ToUint64(numaPath)
 	if err != nil {
@@ -276,7 +289,7 @@ func (bd *BlockDevice) defNumaNodeID() error {
 	return nil
 }
 
-func (bd *BlockDevice) defReadOnly() error {
+func (s *BlockDeviceSvc) defReadOnly(bd *BlockDevice) error {
 	roPath := path.Join(bd.path, CReadOnlyPath)
 	ro, err := file.ToBool(roPath)
 	if err != nil {
@@ -288,7 +301,7 @@ func (bd *BlockDevice) defReadOnly() error {
 	return nil
 }
 
-func (bd *BlockDevice) defFirmwareRev() error {
+func (s *BlockDeviceSvc) defFirmwareRev(bd *BlockDevice) error {
 	fwPath := path.Join(bd.path, CDeviceFirmwareRevPath)
 	fw, err := file.ToString(fwPath)
 	if err != nil {
@@ -300,7 +313,7 @@ func (bd *BlockDevice) defFirmwareRev() error {
 	return nil
 }
 
-func (bd *BlockDevice) defState() error {
+func (s *BlockDeviceSvc) defState(bd *BlockDevice) error {
 	statePath := path.Join(bd.path, CDeviceState)
 	state, err := file.ToString(statePath)
 	if err != nil {
@@ -312,8 +325,8 @@ func (bd *BlockDevice) defState() error {
 	return nil
 }
 
-func (bd *BlockDevice) defPartitionTable() error {
-	table, err := dev.NewPartitionTable(bd.Name)
+func (s *BlockDeviceSvc) defPartitionTable(bd *BlockDevice) error {
+	table, err := s.partitionTableSvc.GetPartitionTable(bd.Name)
 	if err != nil {
 		return errors.Wrap(err, "unable to get partition table")
 	}
@@ -323,8 +336,8 @@ func (bd *BlockDevice) defPartitionTable() error {
 	return nil
 }
 
-func (bd *BlockDevice) defStat() error {
-	stat, err := NewBlockDeviceStat(bd.path)
+func (s *BlockDeviceSvc) defStat(bd *BlockDevice) error {
+	stat, err := s.blockDeviceStatSvc.GetBlockDeviceStat(bd.path)
 	if err != nil {
 		return errors.Wrap(err, "unable to collect stats")
 	}
