@@ -1,22 +1,27 @@
 package inventory
 
 import (
+	"github.com/onmetal/inventory/pkg/block"
+	"github.com/onmetal/inventory/pkg/cpu"
 	"github.com/onmetal/inventory/pkg/dmi"
-	"github.com/onmetal/inventory/pkg/ioctl"
-	"github.com/onmetal/inventory/pkg/proc"
-	"github.com/onmetal/inventory/pkg/run"
-	"github.com/onmetal/inventory/pkg/sys"
+	"github.com/onmetal/inventory/pkg/ipmi"
+	"github.com/onmetal/inventory/pkg/lldp"
+	"github.com/onmetal/inventory/pkg/mem"
+	"github.com/onmetal/inventory/pkg/netlink"
+	"github.com/onmetal/inventory/pkg/nic"
+	"github.com/onmetal/inventory/pkg/numa"
+	"github.com/onmetal/inventory/pkg/pci"
 )
 
 type Inventory struct {
 	DMI           *dmi.DMI
-	MemInfo       *proc.MemInfo
-	CPUInfo       []proc.CPUInfo
-	NumaNodes     []sys.NumaNode
-	BlockDevices  []sys.BlockDevice
-	PCIBusDevices []sys.PCIBus
-	IPMIDevices   []ioctl.IPMIDeviceInfo
-	NICs          []sys.NIC
-	LLDPFrames    []run.LLDPFrameInfo
-	NDPFrames     []ioctl.IPv6Neighbour
+	MemInfo       *mem.Info
+	CPUInfo       []cpu.Info
+	NumaNodes     []numa.Node
+	BlockDevices  []block.Device
+	PCIBusDevices []pci.Bus
+	IPMIDevices   []ipmi.Device
+	NICs          []nic.Device
+	LLDPFrames    []lldp.Frame
+	NDPFrames     []netlink.IPv6Neighbour
 }

@@ -12,18 +12,18 @@ import (
 
 type Svc struct {
 	printer   *printer.Svc
-	RawDMISvc *RawDMISvc
+	RawDMISvc *RawSvc
 }
 
-func NewDMISvc(printer *printer.Svc, rawDMISvc *RawDMISvc) *Svc {
+func NewSvc(printer *printer.Svc, rawDMISvc *RawSvc) *Svc {
 	return &Svc{
 		printer:   printer,
 		RawDMISvc: rawDMISvc,
 	}
 }
 
-func (s *Svc) GetDMIData() (*DMI, error) {
-	rawDmi, err := s.RawDMISvc.GetRawDMI()
+func (s *Svc) GetData() (*DMI, error) {
+	rawDmi, err := s.RawDMISvc.GetRaw()
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to get SMBIOS stream")
 	}

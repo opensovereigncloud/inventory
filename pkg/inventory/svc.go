@@ -6,15 +6,18 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/onmetal/inventory/pkg/dev"
+	"github.com/onmetal/inventory/pkg/block"
+	"github.com/onmetal/inventory/pkg/cpu"
 	"github.com/onmetal/inventory/pkg/dmi"
 	"github.com/onmetal/inventory/pkg/flags"
-	"github.com/onmetal/inventory/pkg/ioctl"
+	"github.com/onmetal/inventory/pkg/ipmi"
+	"github.com/onmetal/inventory/pkg/lldp"
+	"github.com/onmetal/inventory/pkg/mem"
+	"github.com/onmetal/inventory/pkg/netlink"
+	"github.com/onmetal/inventory/pkg/nic"
+	"github.com/onmetal/inventory/pkg/numa"
 	"github.com/onmetal/inventory/pkg/pci"
 	"github.com/onmetal/inventory/pkg/printer"
-	"github.com/onmetal/inventory/pkg/proc"
-	"github.com/onmetal/inventory/pkg/run"
-	"github.com/onmetal/inventory/pkg/sys"
 )
 
 const (
@@ -26,15 +29,15 @@ type Svc struct {
 	printer *printer.Svc
 
 	dmiSvc     *dmi.Svc
-	numaSvc    *sys.NumaSvc
-	blockSvc   *sys.BlockSvc
-	pciSvc     *sys.PCISvc
-	cpuInfoSvc *proc.CPUInfoSvc
-	memInfoSvc *proc.MemInfoSvc
-	lldpSvc    *run.Svc
-	nicSvc     *sys.NICSvc
-	ipmiSvc    *ioctl.IPMISvc
-	netlinkSvc *ioctl.NetlinkSvc
+	numaSvc    *numa.Svc
+	blockSvc   *block.Svc
+	pciSvc     *pci.Svc
+	cpuInfoSvc *cpu.InfoSvc
+	memInfoSvc *mem.InfoSvc
+	lldpSvc    *lldp.Svc
+	nicSvc     *nic.Svc
+	ipmiSvc    *ipmi.Svc
+	netlinkSvc *netlink.Svc
 }
 
 func NewSvc() (*Svc, int) {
@@ -42,41 +45,41 @@ func NewSvc() (*Svc, int) {
 
 	p := printer.NewSvc(f.Verbose)
 
-	pciIDs, err := pci.NewPCIIds()
+	pciIDs, err := pci.NewIDs()
 	if err != nil {
 		p.Err(errors.Wrapf(err, "unable to load PCI IDs"))
 		return nil, CErrRetCode
 	}
 
-	rawDmiSvc := dmi.NewRawDMISvc(f.Root)
-	dmiSvc := dmi.NewDMISvc(p, rawDmiSvc)
+	rawDmiSvc := dmi.NewRawSvc(f.Root)
+	dmiSvc := dmi.NewSvc(p, rawDmiSvc)
 
-	cpuInfoSvc := proc.NewCPUInfoSvc(p, f.Root)
-	memInfoSvc := proc.NewMemInfoSvc(p, f.Root)
+	cpuInfoSvc := cpu.NewInfoSvc(p, f.Root)
+	memInfoSvc := mem.NewInfoSvc(p, f.Root)
 
-	numaStatSvc := sys.NewNumaStatSvc(p)
-	numaNodeSvc := sys.NewNumaNodeSvc(memInfoSvc, numaStatSvc)
-	numaSvc := sys.NewNumaSvc(p, numaNodeSvc, f.Root)
+	numaStatSvc := numa.NewStatSvc(p)
+	numaNodeSvc := numa.NewNodeSvc(memInfoSvc, numaStatSvc)
+	numaSvc := numa.NewSvc(p, numaNodeSvc, f.Root)
 
-	partitionTableSvc := dev.NewPartitionTableSvc(f.Root)
-	blockDeviceStatSvc := sys.NewBlockDeviceStatSvc(p)
-	blockDeviceSvc := sys.NewBlockDeviceSvc(p, partitionTableSvc, blockDeviceStatSvc)
-	blockSvc := sys.NewBlockSvc(p, blockDeviceSvc, f.Root)
+	partitionTableSvc := block.NewPartitionTableSvc(f.Root)
+	blockDeviceStatSvc := block.NewDeviceStatSvc(p)
+	blockDeviceSvc := block.NewDeviceSvc(p, partitionTableSvc, blockDeviceStatSvc)
+	blockSvc := block.NewSvc(p, blockDeviceSvc, f.Root)
 
-	pciDevSvc := sys.NewPCIDeviceSvc(p, pciIDs)
-	pciBusSvc := sys.NewPCIBusSvc(p, pciDevSvc)
-	pciSvc := sys.NewPCISvc(p, pciBusSvc, f.Root)
+	pciDevSvc := pci.NewDeviceSvc(p, pciIDs)
+	pciBusSvc := pci.NewBusSvc(p, pciDevSvc)
+	pciSvc := pci.NewSvc(p, pciBusSvc, f.Root)
 
-	lldpFrameInfoSvc := run.NewLLDPFrameInfoSvc(p)
-	lldpSvc := run.NewLLDPSvc(p, lldpFrameInfoSvc, f.Root)
+	lldpFrameInfoSvc := lldp.NewFrameSvc(p)
+	lldpSvc := lldp.NewSvc(p, lldpFrameInfoSvc, f.Root)
 
-	nicDevSvc := sys.NewNICDeviceSvc(p)
-	nicSvc := sys.NewNICSvc(p, nicDevSvc, f.Root)
+	nicDevSvc := nic.NewDeviceSvc(p)
+	nicSvc := nic.NewSvc(p, nicDevSvc, f.Root)
 
-	ipmiDevInfoSvc := ioctl.NewIPMIDeviceInfoSvc(p)
-	ipmiSvc := ioctl.NewIPMISvc(p, ipmiDevInfoSvc, f.Root)
+	ipmiDevInfoSvc := ipmi.NewDeviceSvc(p)
+	ipmiSvc := ipmi.NewSvc(p, ipmiDevInfoSvc, f.Root)
 
-	nlSvc := ioctl.NewNetlinkSvc(p, f.Root)
+	nlSvc := netlink.NewSvc(p, f.Root)
 
 	return &Svc{
 		printer:    p,
@@ -134,7 +137,7 @@ func (is *Svc) Inventorize() int {
 }
 
 func (is *Svc) setDMI(inv *Inventory) error {
-	data, err := is.dmiSvc.GetDMIData()
+	data, err := is.dmiSvc.GetData()
 	if err != nil {
 		return errors.Wrap(err, "unable to get dmi data")
 	}
@@ -143,7 +146,7 @@ func (is *Svc) setDMI(inv *Inventory) error {
 }
 
 func (is *Svc) setCPUInfo(inv *Inventory) error {
-	data, err := is.cpuInfoSvc.GetCPUInfo()
+	data, err := is.cpuInfoSvc.GetInfo()
 	if err != nil {
 		return errors.Wrap(err, "unable to get proc data")
 	}
@@ -152,7 +155,7 @@ func (is *Svc) setCPUInfo(inv *Inventory) error {
 }
 
 func (is *Svc) setMemInfo(inv *Inventory) error {
-	data, err := is.memInfoSvc.GetMemInfo()
+	data, err := is.memInfoSvc.GetInfo()
 	if err != nil {
 		return errors.Wrap(err, "unable to get proc data")
 	}
@@ -161,7 +164,7 @@ func (is *Svc) setMemInfo(inv *Inventory) error {
 }
 
 func (is *Svc) setNumaNodes(inv *Inventory) error {
-	data, err := is.numaSvc.GetNumaData()
+	data, err := is.numaSvc.GetData()
 	if err != nil {
 		return errors.Wrap(err, "unable to get numa data")
 	}
@@ -170,7 +173,7 @@ func (is *Svc) setNumaNodes(inv *Inventory) error {
 }
 
 func (is *Svc) setBlockDevices(inv *Inventory) error {
-	data, err := is.blockSvc.GetBlockData()
+	data, err := is.blockSvc.GetData()
 	if err != nil {
 		return errors.Wrap(err, "unable to get block data")
 	}
@@ -179,7 +182,7 @@ func (is *Svc) setBlockDevices(inv *Inventory) error {
 }
 
 func (is *Svc) setPCIBusDevices(inv *Inventory) error {
-	data, err := is.pciSvc.GetPCIData()
+	data, err := is.pciSvc.GetData()
 	if err != nil {
 		return errors.Wrap(err, "unable to get pci data")
 	}
@@ -188,7 +191,7 @@ func (is *Svc) setPCIBusDevices(inv *Inventory) error {
 }
 
 func (is *Svc) setIPMIDevices(inv *Inventory) error {
-	data, err := is.ipmiSvc.GetIPMIData()
+	data, err := is.ipmiSvc.GetData()
 	if err != nil {
 		return errors.Wrap(err, "unable to get ipmi data")
 	}
@@ -197,7 +200,7 @@ func (is *Svc) setIPMIDevices(inv *Inventory) error {
 }
 
 func (is *Svc) setNICs(inv *Inventory) error {
-	data, err := is.nicSvc.GetNICData()
+	data, err := is.nicSvc.GetData()
 	if err != nil {
 		return errors.Wrap(err, "unable to get nic data")
 	}
@@ -206,7 +209,7 @@ func (is *Svc) setNICs(inv *Inventory) error {
 }
 
 func (is *Svc) setLLDPFrames(inv *Inventory) error {
-	data, err := is.lldpSvc.GetLLDPData()
+	data, err := is.lldpSvc.GetData()
 	if err != nil {
 		return errors.Wrap(err, "unable to get lldp data")
 	}
