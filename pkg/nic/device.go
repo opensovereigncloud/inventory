@@ -9,7 +9,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/onmetal/inventory/pkg/file"
-	"github.com/onmetal/inventory/pkg/printer"
 )
 
 const (
@@ -58,36 +57,36 @@ const (
 	CRenamedNameAssignType             = "renamed"
 )
 
-type NICAddressAssignType string
+type AddressAssignType string
 
-type NICLinkMode string
+type LinkMode string
 
-type NICNameAssignType string
+type NameAssignType string
 
-var CAddressAssignTypes = []NICAddressAssignType{
+var CAddressAssignTypes = []AddressAssignType{
 	CPermanentAddressAssignType,
 	CRandomlyGeneratedAddressAssignType,
 	CStolenFromAnotherDeviceAddressAssignType,
 	CSetUsingDevAddressAssignType,
 }
 
-var CLinkModes = []NICLinkMode{
+var CLinkModes = []LinkMode{
 	CDefaultLinkMode,
 	CDormantLinkMode,
 }
 
-var CNameAssignTypes = []NICNameAssignType{
+var CNameAssignTypes = []NameAssignType{
 	CUnpredictableKernelNameAssignType,
 	CPredictableKernelNameAssignType,
 	CUserspaceNameAssignType,
 	CRenamedNameAssignType,
 }
 
-type NIC struct {
+type Device struct {
 	Name       string
 	PCIAddress string
 
-	AddressAssignType   NICAddressAssignType
+	AddressAssignType   AddressAssignType
 	Address             string
 	AddressLength       uint8
 	Broadcast           string
@@ -99,11 +98,11 @@ type NIC struct {
 	DevPort             uint8
 	Dormant             bool
 	Duplex              string
-	Flags               *NICFlags
+	Flags               *Flags
 	InterfaceAlias      string
 	InterfaceIndex      uint32
 	InterfaceLink       uint32
-	LinkMode            NICLinkMode
+	LinkMode            LinkMode
 	MTU                 uint16
 	NetDevGroup         int
 	OperationalState    string
@@ -113,66 +112,10 @@ type NIC struct {
 	Speed               uint32
 	Testing             bool
 	TransmitQueueLength uint32
-	Type                CNICType
+	Type                Type
 }
 
-type NICDeviceSvc struct {
-	printer *printer.Svc
-}
-
-func NewNICDeviceSvc(printer *printer.Svc) *NICDeviceSvc {
-	return &NICDeviceSvc{
-		printer: printer,
-	}
-}
-
-func (s *NICDeviceSvc) GetNIC(thePath string, name string) (*NIC, error) {
-	nic := &NIC{
-		Name: name,
-	}
-
-	defs := []func(string) error{
-		nic.defPCIAddress,
-		nic.defAddressAssignType,
-		nic.defAddress,
-		nic.defAddressLength,
-		nic.defBroadcast,
-		nic.defCarrier,
-		nic.defCarrierChanges,
-		nic.defCarrierDownCount,
-		nic.defCarrierUpCount,
-		nic.defDevID,
-		nic.defDevPort,
-		nic.defDormant,
-		nic.defDuplex,
-		nic.defFlags,
-		nic.defInterfaceAlias,
-		nic.defInterfaceIndex,
-		nic.defInterfaceLink,
-		nic.defLinkMode,
-		nic.defMTU,
-		nic.defNetDevGroup,
-		nic.defOperationalState,
-		nic.defPhysicalPortID,
-		nic.defPhysicalPortName,
-		nic.defPhysicalSwitchID,
-		nic.defSpeed,
-		nic.defTesting,
-		nic.defTransmitQueueLength,
-		nic.defType,
-	}
-
-	for _, def := range defs {
-		err := def(thePath)
-		if err != nil {
-			s.printer.VErr(errors.Wrap(err, "unable to set NIC property"))
-		}
-	}
-
-	return nic, nil
-}
-
-func (n *NIC) defPCIAddress(thePath string) error {
+func (n *Device) defPCIAddress(thePath string) error {
 	filePath := path.Join(thePath, CNICDevicePCIAddressPath)
 
 	linkPath, err := filepath.EvalSymlinks(filePath)
@@ -189,7 +132,7 @@ func (n *NIC) defPCIAddress(thePath string) error {
 	return nil
 }
 
-func (n *NIC) defAddressAssignType(thePath string) error {
+func (n *Device) defAddressAssignType(thePath string) error {
 	filePath := path.Join(thePath, CNICDeviceAddressAddressAssignTypePath)
 	fileVal, err := file.ToInt(filePath)
 	if err != nil {
@@ -204,7 +147,7 @@ func (n *NIC) defAddressAssignType(thePath string) error {
 	return nil
 }
 
-func (n *NIC) defAddress(thePath string) error {
+func (n *Device) defAddress(thePath string) error {
 	addressPath := path.Join(thePath, CNICDeviceAddressPath)
 	addressString, err := file.ToString(addressPath)
 	if err != nil {
@@ -216,7 +159,7 @@ func (n *NIC) defAddress(thePath string) error {
 	return nil
 }
 
-func (n *NIC) defAddressLength(thePath string) error {
+func (n *Device) defAddressLength(thePath string) error {
 	filePath := path.Join(thePath, CNICDeviceAddressLengthPath)
 	fileVal, err := file.ToUint8(filePath)
 	if err != nil {
@@ -228,7 +171,7 @@ func (n *NIC) defAddressLength(thePath string) error {
 	return nil
 }
 
-func (n *NIC) defBroadcast(thePath string) error {
+func (n *Device) defBroadcast(thePath string) error {
 	filePath := path.Join(thePath, CNICDeviceBroadcastPath)
 	fileVal, err := file.ToString(filePath)
 	if err != nil {
@@ -240,7 +183,7 @@ func (n *NIC) defBroadcast(thePath string) error {
 	return nil
 }
 
-func (n *NIC) defCarrier(thePath string) error {
+func (n *Device) defCarrier(thePath string) error {
 	carrierPath := path.Join(thePath, CNICDeviceCarrierPath)
 	carrier, err := file.ToBool(carrierPath)
 	if err != nil {
@@ -252,7 +195,7 @@ func (n *NIC) defCarrier(thePath string) error {
 	return nil
 }
 
-func (n *NIC) defCarrierChanges(thePath string) error {
+func (n *Device) defCarrierChanges(thePath string) error {
 	filePath := path.Join(thePath, CNICDeviceCarrierChangesPath)
 	fileVal, err := file.ToUint32(filePath)
 	if err != nil {
@@ -264,7 +207,7 @@ func (n *NIC) defCarrierChanges(thePath string) error {
 	return nil
 }
 
-func (n *NIC) defCarrierDownCount(thePath string) error {
+func (n *Device) defCarrierDownCount(thePath string) error {
 	filePath := path.Join(thePath, CNICDeviceCarrierDownCountPath)
 	fileVal, err := file.ToUint32(filePath)
 	if err != nil {
@@ -276,7 +219,7 @@ func (n *NIC) defCarrierDownCount(thePath string) error {
 	return nil
 }
 
-func (n *NIC) defCarrierUpCount(thePath string) error {
+func (n *Device) defCarrierUpCount(thePath string) error {
 	filePath := path.Join(thePath, CNICDeviceCarrierUpCountPath)
 	fileVal, err := file.ToUint32(filePath)
 	if err != nil {
@@ -288,7 +231,7 @@ func (n *NIC) defCarrierUpCount(thePath string) error {
 	return nil
 }
 
-func (n *NIC) defDevID(thePath string) error {
+func (n *Device) defDevID(thePath string) error {
 	filePath := path.Join(thePath, CNICDeviceDevIDPath)
 	fileVal, err := file.ToString(filePath)
 	if err != nil {
@@ -300,7 +243,7 @@ func (n *NIC) defDevID(thePath string) error {
 	return nil
 }
 
-func (n *NIC) defDevPort(thePath string) error {
+func (n *Device) defDevPort(thePath string) error {
 	filePath := path.Join(thePath, CNICDeviceDevPortPath)
 	fileVal, err := file.ToUint8(filePath)
 	if err != nil {
@@ -312,7 +255,7 @@ func (n *NIC) defDevPort(thePath string) error {
 	return nil
 }
 
-func (n *NIC) defDormant(thePath string) error {
+func (n *Device) defDormant(thePath string) error {
 	filePath := path.Join(thePath, CNICDeviceDormantPath)
 	fileVal, err := file.ToBool(filePath)
 	if err != nil {
@@ -324,7 +267,7 @@ func (n *NIC) defDormant(thePath string) error {
 	return nil
 }
 
-func (n *NIC) defDuplex(thePath string) error {
+func (n *Device) defDuplex(thePath string) error {
 	filePath := path.Join(thePath, CNICDeviceDuplexPath)
 	fileVal, err := file.ToString(filePath)
 	if err != nil {
@@ -336,7 +279,7 @@ func (n *NIC) defDuplex(thePath string) error {
 	return nil
 }
 
-func (n *NIC) defFlags(thePath string) error {
+func (n *Device) defFlags(thePath string) error {
 	filePath := path.Join(thePath, CNICDeviceFlagsPath)
 	fileVal, err := file.ToString(filePath)
 	if err != nil {
@@ -348,12 +291,12 @@ func (n *NIC) defFlags(thePath string) error {
 		return errors.Wrapf(err, "unable to parse uint from from %s", fileVal)
 	}
 
-	n.Flags = NewNICFlags(uint32(val))
+	n.Flags = NewFlags(uint32(val))
 
 	return nil
 }
 
-func (n *NIC) defInterfaceAlias(thePath string) error {
+func (n *Device) defInterfaceAlias(thePath string) error {
 	filePath := path.Join(thePath, CNICDeviceInterfaceAliasPath)
 	fileVal, err := file.ToString(filePath)
 	if err != nil {
@@ -365,7 +308,7 @@ func (n *NIC) defInterfaceAlias(thePath string) error {
 	return nil
 }
 
-func (n *NIC) defInterfaceIndex(thePath string) error {
+func (n *Device) defInterfaceIndex(thePath string) error {
 	filePath := path.Join(thePath, CNICDeviceInterfaceIndexPath)
 	fileVal, err := file.ToUint32(filePath)
 	if err != nil {
@@ -377,7 +320,7 @@ func (n *NIC) defInterfaceIndex(thePath string) error {
 	return nil
 }
 
-func (n *NIC) defInterfaceLink(thePath string) error {
+func (n *Device) defInterfaceLink(thePath string) error {
 	filePath := path.Join(thePath, CNICDeviceInterfaceLinkPath)
 	fileVal, err := file.ToUint32(filePath)
 	if err != nil {
@@ -389,7 +332,7 @@ func (n *NIC) defInterfaceLink(thePath string) error {
 	return nil
 }
 
-func (n *NIC) defLinkMode(thePath string) error {
+func (n *Device) defLinkMode(thePath string) error {
 	filePath := path.Join(thePath, CNICDeviceLinkModePath)
 	fileVal, err := file.ToInt(filePath)
 	if err != nil {
@@ -404,7 +347,7 @@ func (n *NIC) defLinkMode(thePath string) error {
 	return nil
 }
 
-func (n *NIC) defMTU(thePath string) error {
+func (n *Device) defMTU(thePath string) error {
 	filePath := path.Join(thePath, CNICDeviceMTUPath)
 	fileVal, err := file.ToUint16(filePath)
 	if err != nil {
@@ -416,7 +359,7 @@ func (n *NIC) defMTU(thePath string) error {
 	return nil
 }
 
-func (n *NIC) defNameAssignType(thePath string) error {
+func (n *Device) defNameAssignType(thePath string) error {
 	filePath := path.Join(thePath, CNICDeviceNameAssignTypePath)
 	fileVal, err := file.ToInt(filePath)
 	if err != nil {
@@ -433,7 +376,7 @@ func (n *NIC) defNameAssignType(thePath string) error {
 	return nil
 }
 
-func (n *NIC) defNetDevGroup(thePath string) error {
+func (n *Device) defNetDevGroup(thePath string) error {
 	filePath := path.Join(thePath, CNICDeviceNetDevGroupPath)
 	fileVal, err := file.ToInt(filePath)
 	if err != nil {
@@ -445,7 +388,7 @@ func (n *NIC) defNetDevGroup(thePath string) error {
 	return nil
 }
 
-func (n *NIC) defOperationalState(thePath string) error {
+func (n *Device) defOperationalState(thePath string) error {
 	filePath := path.Join(thePath, CNICDeviceOperationalStatePath)
 	fileVal, err := file.ToString(filePath)
 	if err != nil {
@@ -457,7 +400,7 @@ func (n *NIC) defOperationalState(thePath string) error {
 	return nil
 }
 
-func (n *NIC) defPhysicalPortID(thePath string) error {
+func (n *Device) defPhysicalPortID(thePath string) error {
 	filePath := path.Join(thePath, CNICDevicePhysicalPortIDPath)
 	fileVal, err := file.ToString(filePath)
 	if err != nil {
@@ -469,7 +412,7 @@ func (n *NIC) defPhysicalPortID(thePath string) error {
 	return nil
 }
 
-func (n *NIC) defPhysicalPortName(thePath string) error {
+func (n *Device) defPhysicalPortName(thePath string) error {
 	filePath := path.Join(thePath, CNICDevicePhysicalPortNamePath)
 	fileVal, err := file.ToString(filePath)
 	if err != nil {
@@ -481,7 +424,7 @@ func (n *NIC) defPhysicalPortName(thePath string) error {
 	return nil
 }
 
-func (n *NIC) defPhysicalSwitchID(thePath string) error {
+func (n *Device) defPhysicalSwitchID(thePath string) error {
 	filePath := path.Join(thePath, CNICDevicePhysicalSwitchIDPath)
 	fileVal, err := file.ToString(filePath)
 	if err != nil {
@@ -493,7 +436,7 @@ func (n *NIC) defPhysicalSwitchID(thePath string) error {
 	return nil
 }
 
-func (n *NIC) defSpeed(thePath string) error {
+func (n *Device) defSpeed(thePath string) error {
 	filePath := path.Join(thePath, CNICDeviceSpeedPath)
 	fileVal, err := file.ToUint32(filePath)
 	if err != nil {
@@ -505,7 +448,7 @@ func (n *NIC) defSpeed(thePath string) error {
 	return nil
 }
 
-func (n *NIC) defTesting(thePath string) error {
+func (n *Device) defTesting(thePath string) error {
 	filePath := path.Join(thePath, CNICDeviceTestingPath)
 	fileVal, err := file.ToBool(filePath)
 	if err != nil {
@@ -517,7 +460,7 @@ func (n *NIC) defTesting(thePath string) error {
 	return nil
 }
 
-func (n *NIC) defTransmitQueueLength(thePath string) error {
+func (n *Device) defTransmitQueueLength(thePath string) error {
 	filePath := path.Join(thePath, CNICDeviceTransmitQueueLengthPath)
 	fileVal, err := file.ToUint32(filePath)
 	if err != nil {
@@ -529,18 +472,18 @@ func (n *NIC) defTransmitQueueLength(thePath string) error {
 	return nil
 }
 
-func (n *NIC) defType(thePath string) error {
+func (n *Device) defType(thePath string) error {
 	filePath := path.Join(thePath, CNICDeviceTypePath)
 	fileVal, err := file.ToUint16(filePath)
 	if err != nil {
 		return errors.Wrapf(err, "unable to get type value from %s", filePath)
 	}
 
-	theType, ok := CNICTypes[fileVal]
+	theType, ok := CTypes[fileVal]
 	if ok {
 		n.Type = theType
 	} else {
-		n.Type = CNICTypes[0xffff]
+		n.Type = CTypes[0xffff]
 	}
 
 	return nil

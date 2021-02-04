@@ -33,11 +33,11 @@ type Svc struct {
 	blockSvc   *block.Svc
 	pciSvc     *pci.Svc
 	cpuInfoSvc *cpu.InfoSvc
-	memInfoSvc *mem.MemInfoSvc
+	memInfoSvc *mem.InfoSvc
 	lldpSvc    *lldp.Svc
-	nicSvc     *nic.NICSvc
-	ipmiSvc    *ipmi.IPMISvc
-	netlinkSvc *netlink.NetlinkSvc
+	nicSvc     *nic.Svc
+	ipmiSvc    *ipmi.Svc
+	netlinkSvc *netlink.Svc
 }
 
 func NewSvc() (*Svc, int) {
@@ -51,11 +51,11 @@ func NewSvc() (*Svc, int) {
 		return nil, CErrRetCode
 	}
 
-	rawDmiSvc := dmi.NewRawDMISvc(f.Root)
-	dmiSvc := dmi.NewDMISvc(p, rawDmiSvc)
+	rawDmiSvc := dmi.NewRawSvc(f.Root)
+	dmiSvc := dmi.NewSvc(p, rawDmiSvc)
 
 	cpuInfoSvc := cpu.NewInfoSvc(p, f.Root)
-	memInfoSvc := mem.NewMemInfoSvc(p, f.Root)
+	memInfoSvc := mem.NewInfoSvc(p, f.Root)
 
 	numaStatSvc := numa.NewStatSvc(p)
 	numaNodeSvc := numa.NewNodeSvc(memInfoSvc, numaStatSvc)
@@ -70,16 +70,16 @@ func NewSvc() (*Svc, int) {
 	pciBusSvc := pci.NewBusSvc(p, pciDevSvc)
 	pciSvc := pci.NewSvc(p, pciBusSvc, f.Root)
 
-	lldpFrameInfoSvc := lldp.NewLLDPFrameInfoSvc(p)
-	lldpSvc := lldp.NewLLDPSvc(p, lldpFrameInfoSvc, f.Root)
+	lldpFrameInfoSvc := lldp.NewFrameSvc(p)
+	lldpSvc := lldp.NewSvc(p, lldpFrameInfoSvc, f.Root)
 
-	nicDevSvc := nic.NewNICDeviceSvc(p)
-	nicSvc := nic.NewNICSvc(p, nicDevSvc, f.Root)
+	nicDevSvc := nic.NewDeviceSvc(p)
+	nicSvc := nic.NewSvc(p, nicDevSvc, f.Root)
 
-	ipmiDevInfoSvc := ipmi.NewIPMIDeviceInfoSvc(p)
-	ipmiSvc := ipmi.NewIPMISvc(p, ipmiDevInfoSvc, f.Root)
+	ipmiDevInfoSvc := ipmi.NewDeviceSvc(p)
+	ipmiSvc := ipmi.NewSvc(p, ipmiDevInfoSvc, f.Root)
 
-	nlSvc := netlink.NewNetlinkSvc(p, f.Root)
+	nlSvc := netlink.NewSvc(p, f.Root)
 
 	return &Svc{
 		printer:    p,
@@ -137,7 +137,7 @@ func (is *Svc) Inventorize() int {
 }
 
 func (is *Svc) setDMI(inv *Inventory) error {
-	data, err := is.dmiSvc.GetDMIData()
+	data, err := is.dmiSvc.GetData()
 	if err != nil {
 		return errors.Wrap(err, "unable to get dmi data")
 	}
@@ -155,7 +155,7 @@ func (is *Svc) setCPUInfo(inv *Inventory) error {
 }
 
 func (is *Svc) setMemInfo(inv *Inventory) error {
-	data, err := is.memInfoSvc.GetMemInfo()
+	data, err := is.memInfoSvc.GetInfo()
 	if err != nil {
 		return errors.Wrap(err, "unable to get proc data")
 	}
@@ -191,7 +191,7 @@ func (is *Svc) setPCIBusDevices(inv *Inventory) error {
 }
 
 func (is *Svc) setIPMIDevices(inv *Inventory) error {
-	data, err := is.ipmiSvc.GetIPMIData()
+	data, err := is.ipmiSvc.GetData()
 	if err != nil {
 		return errors.Wrap(err, "unable to get ipmi data")
 	}
@@ -200,7 +200,7 @@ func (is *Svc) setIPMIDevices(inv *Inventory) error {
 }
 
 func (is *Svc) setNICs(inv *Inventory) error {
-	data, err := is.nicSvc.GetNICData()
+	data, err := is.nicSvc.GetData()
 	if err != nil {
 		return errors.Wrap(err, "unable to get nic data")
 	}
@@ -209,7 +209,7 @@ func (is *Svc) setNICs(inv *Inventory) error {
 }
 
 func (is *Svc) setLLDPFrames(inv *Inventory) error {
-	data, err := is.lldpSvc.GetLLDPData()
+	data, err := is.lldpSvc.GetData()
 	if err != nil {
 		return errors.Wrap(err, "unable to get lldp data")
 	}

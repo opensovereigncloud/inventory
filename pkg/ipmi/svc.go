@@ -17,27 +17,27 @@ const (
 
 var CIPMIDevRegexp = regexp.MustCompile(CIPMIDevPattern)
 
-type IPMISvc struct {
+type Svc struct {
 	printer     *printer.Svc
-	ipmiInfoSvc *IPMIDeviceInfoSvc
+	ipmiInfoSvc *DeviceSvc
 	devPath     string
 }
 
-func NewIPMISvc(printer *printer.Svc, ipmiDevInfoSvc *IPMIDeviceInfoSvc, basePath string) *IPMISvc {
-	return &IPMISvc{
+func NewSvc(printer *printer.Svc, ipmiDevInfoSvc *DeviceSvc, basePath string) *Svc {
+	return &Svc{
 		printer:     printer,
 		ipmiInfoSvc: ipmiDevInfoSvc,
 		devPath:     path.Join(basePath, CDevPath),
 	}
 }
 
-func (s *IPMISvc) GetIPMIData() ([]IPMIDeviceInfo, error) {
+func (s *Svc) GetData() ([]Device, error) {
 	devFolderContents, err := ioutil.ReadDir(s.devPath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "unable to read contents of %s", s.devPath)
 	}
 
-	infos := make([]IPMIDeviceInfo, 0)
+	infos := make([]Device, 0)
 	for _, dev := range devFolderContents {
 		devName := dev.Name()
 
@@ -48,7 +48,7 @@ func (s *IPMISvc) GetIPMIData() ([]IPMIDeviceInfo, error) {
 		}
 
 		thePath := path.Join(s.devPath, devName)
-		info, err := s.ipmiInfoSvc.GetIPMIDeviceInfo(thePath)
+		info, err := s.ipmiInfoSvc.GetDevice(thePath)
 		if err != nil {
 			s.printer.VErr(errors.Wrap(err, "unabale to obtain IPMI device info"))
 			continue

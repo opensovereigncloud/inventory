@@ -1,6 +1,6 @@
 package lldp
 
-type LLDPCapability string
+type Capability string
 
 const (
 	CLLDPOtherCapability             = "Other"
@@ -16,7 +16,7 @@ const (
 	CLLDPTwoPortMACRelayCapability   = "Two-port MAC Relay (TPMR)"
 )
 
-var CCapabilities = []LLDPCapability{
+var CCapabilities = []Capability{
 	CLLDPOtherCapability,
 	CLLDPRepeaterCapability,
 	CLLDPBridgeCapability,

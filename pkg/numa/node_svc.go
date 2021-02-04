@@ -25,11 +25,11 @@ var CDistanceTrimRegexp = regexp.MustCompile(CDistanceTrimPattern)
 var CCPUListTrimRegexp = regexp.MustCompile(CCPUListTrimPattern)
 
 type NodeSvc struct {
-	memInfoSvc *mem.MemInfoSvc
+	memInfoSvc *mem.InfoSvc
 	statSvc    *StatSvc
 }
 
-func NewNodeSvc(memInfoSvc *mem.MemInfoSvc, statSvc *StatSvc) *NodeSvc {
+func NewNodeSvc(memInfoSvc *mem.InfoSvc, statSvc *StatSvc) *NodeSvc {
 	return &NodeSvc{
 		memInfoSvc: memInfoSvc,
 		statSvc:    statSvc,
@@ -90,7 +90,7 @@ func (s *NodeSvc) GetNode(thePath string, nodeId int) (*Node, error) {
 	}
 
 	memPath := path.Join(thePath, CNodeMemInfo)
-	memInfo, err := s.memInfoSvc.GetMemInfoFromFile(memPath)
+	memInfo, err := s.memInfoSvc.GetInfoFromFile(memPath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "unable to obtain meminfo for %s", thePath)
 	}

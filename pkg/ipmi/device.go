@@ -3,12 +3,9 @@ package ipmi
 import (
 	"fmt"
 	"net"
-	"os"
 
 	"github.com/pkg/errors"
 	"github.com/u-root/u-root/pkg/ipmi"
-
-	"github.com/onmetal/inventory/pkg/printer"
 )
 
 const (
@@ -41,27 +38,27 @@ const (
 	CIPMIAdditionalChassisDeviceSupport       = "Chassis Device"
 )
 
-type IPMISetInProgressStatus string
+type SetInProgressStatus string
 
-var CIPMISetInProgressStatuses = []IPMISetInProgressStatus{
+var CSetInProgressStatuses = []SetInProgressStatus{
 	CIPMISetInProgressSetCompleteStatus,
 	CIPMISetInProgressSetInProgressStatus,
 	CIPMISetInProgressCommitWriteStatus,
 	CIPMISetInProgressReservedStatus,
 }
 
-type IPMIIPAddressSource string
+type IPAddressSource string
 
-var CIPMIIPAddressSources = []IPMIIPAddressSource{
+var CIPAddressSources = []IPAddressSource{
 	CIPMIIPAddressSourceUnspecified,
 	CIPMIIPAddressSourceStatic,
 	CIPMIIPAddressSourceDHCP,
 	CIPMIIPAddressSourceBIOS,
 }
 
-type IPMIAdditionalDeviceSupport string
+type AdditionalDeviceSupport string
 
-var CIPMIAdditionalDeviceSupportList = []IPMIAdditionalDeviceSupport{
+var CAdditionalDeviceSupportList = []AdditionalDeviceSupport{
 	CIPMIAdditionalSensorDeviceSupport,
 	CIPMIAdditionalSDRRepositoryDeviceSupport,
 	CIPMIAdditionalSELDeviceSupport,
@@ -72,7 +69,7 @@ var CIPMIAdditionalDeviceSupportList = []IPMIAdditionalDeviceSupport{
 	CIPMIAdditionalChassisDeviceSupport,
 }
 
-type IPMIDeviceInfo struct {
+type Device struct {
 	ID                      uint8
 	Revision                uint8
 	FirmwareRevision        string
@@ -81,61 +78,16 @@ type IPMIDeviceInfo struct {
 	ProductID               string
 	DeviceAvailable         bool
 	ProvidesDeviceSDRs      bool
-	AdditionalDeviceSupport []IPMIAdditionalDeviceSupport
+	AdditionalDeviceSupport []AdditionalDeviceSupport
 	AuxFirmwareRevInfo      []string
 
-	SetInProgress   IPMISetInProgressStatus
-	IPAddressSource IPMIIPAddressSource
+	SetInProgress   SetInProgressStatus
+	IPAddressSource IPAddressSource
 	IPAddress       string
 	MACAddress      string
 }
 
-type IPMIDeviceInfoSvc struct {
-	printer *printer.Svc
-}
-
-func NewIPMIDeviceInfoSvc(printer *printer.Svc) *IPMIDeviceInfoSvc {
-	return &IPMIDeviceInfoSvc{
-		printer: printer,
-	}
-}
-
-func (s *IPMIDeviceInfoSvc) GetIPMIDeviceInfo(thePath string) (*IPMIDeviceInfo, error) {
-	f, err := os.OpenFile(thePath, os.O_RDWR, 0)
-	if err != nil {
-		return nil, errors.Wrapf(err, "unable to open IPMI device file %s", thePath)
-	}
-
-	conn := &ipmi.IPMI{
-		File: f,
-	}
-	defer func() {
-		if err := conn.Close(); err != nil {
-			s.printer.VErr(errors.Wrapf(err, "unable to close file %s", thePath))
-		}
-	}()
-
-	info := &IPMIDeviceInfo{}
-
-	defs := []func(*ipmi.IPMI) error{
-		info.defDevice,
-		info.defSetInProgress,
-		info.defIPAddressSource,
-		info.defIPAddress,
-		info.defMACAddress,
-	}
-
-	for _, def := range defs {
-		err := def(conn)
-		if err != nil {
-			s.printer.VErr(errors.Wrap(err, "unable to set IPMI device info property"))
-		}
-	}
-
-	return info, nil
-}
-
-func (i *IPMIDeviceInfo) defDevice(conn *ipmi.IPMI) error {
+func (i *Device) defDevice(conn *ipmi.IPMI) error {
 	deviceInfo, err := conn.GetDeviceID()
 	if err != nil {
 		return err
@@ -147,7 +99,7 @@ func (i *IPMIDeviceInfo) defDevice(conn *ipmi.IPMI) error {
 	i.IPMIVersion = fmt.Sprintf("%x.%x", deviceInfo.IpmiVersion&0x0f, (deviceInfo.IpmiVersion&0x0f)>>4)
 
 	if deviceInfo.AdtlDeviceSupport != 0 {
-		i.AdditionalDeviceSupport = make([]IPMIAdditionalDeviceSupport, 0)
+		i.AdditionalDeviceSupport = make([]AdditionalDeviceSupport, 0)
 	}
 
 	manufacturerID := uint32(deviceInfo.ManufacturerID[2]) << 16
@@ -162,7 +114,7 @@ func (i *IPMIDeviceInfo) defDevice(conn *ipmi.IPMI) error {
 	i.DeviceAvailable = (^deviceInfo.FwRev1 & 0x80) != 0
 	i.ProvidesDeviceSDRs = deviceInfo.DeviceRevision&0x80 != 0
 
-	for shift, sup := range CIPMIAdditionalDeviceSupportList {
+	for shift, sup := range CAdditionalDeviceSupportList {
 		idx := byte(1 << shift)
 		val := deviceInfo.AdtlDeviceSupport & idx
 
@@ -180,7 +132,7 @@ func (i *IPMIDeviceInfo) defDevice(conn *ipmi.IPMI) error {
 	return nil
 }
 
-func (i *IPMIDeviceInfo) defSetInProgress(conn *ipmi.IPMI) error {
+func (i *Device) defSetInProgress(conn *ipmi.IPMI) error {
 	bytes, err := conn.GetLanConfig(CIPMIIOCtlChannel, CIPMIIOCtlSetInProgressFlag)
 	if err != nil {
 		return errors.Wrap(err, "unable to get set in progress")
@@ -192,16 +144,16 @@ func (i *IPMIDeviceInfo) defSetInProgress(conn *ipmi.IPMI) error {
 
 	valIdx := int(bytes[2])
 
-	if valIdx >= len(CIPMISetInProgressStatuses) {
+	if valIdx >= len(CSetInProgressStatuses) {
 		i.SetInProgress = CIPMISetInProgressUnknownStatus
 	}
 
-	i.SetInProgress = CIPMISetInProgressStatuses[valIdx]
+	i.SetInProgress = CSetInProgressStatuses[valIdx]
 
 	return nil
 }
 
-func (i *IPMIDeviceInfo) defIPAddressSource(conn *ipmi.IPMI) error {
+func (i *Device) defIPAddressSource(conn *ipmi.IPMI) error {
 	bytes, err := conn.GetLanConfig(CIPMIIOCtlChannel, CIPMIIOCtlIPAddressSourceFlag)
 	if err != nil {
 		return errors.Wrap(err, "unable to get IP address source")
@@ -213,16 +165,16 @@ func (i *IPMIDeviceInfo) defIPAddressSource(conn *ipmi.IPMI) error {
 
 	valIdx := int(bytes[2])
 
-	if valIdx >= len(CIPMIIPAddressSources) {
+	if valIdx >= len(CIPAddressSources) {
 		i.IPAddressSource = CIPMIIPAddressSourceOther
 	}
 
-	i.IPAddressSource = CIPMIIPAddressSources[valIdx]
+	i.IPAddressSource = CIPAddressSources[valIdx]
 
 	return nil
 }
 
-func (i *IPMIDeviceInfo) defIPAddress(conn *ipmi.IPMI) error {
+func (i *Device) defIPAddress(conn *ipmi.IPMI) error {
 	bytes, err := conn.GetLanConfig(CIPMIIOCtlChannel, CIPMIIOCtlIPAddressFlag)
 	if err != nil {
 		return errors.Wrap(err, "unable to obtain IP address")
@@ -239,7 +191,7 @@ func (i *IPMIDeviceInfo) defIPAddress(conn *ipmi.IPMI) error {
 	return nil
 }
 
-func (i *IPMIDeviceInfo) defMACAddress(conn *ipmi.IPMI) error {
+func (i *Device) defMACAddress(conn *ipmi.IPMI) error {
 	bytes, err := conn.GetLanConfig(CIPMIIOCtlChannel, CIPMIIOCtlMACAddressFlag)
 	if err != nil {
 		return errors.Wrap(err, "unable to obtain MAC address")

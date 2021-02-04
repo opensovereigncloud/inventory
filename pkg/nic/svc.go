@@ -13,33 +13,33 @@ const (
 	CNICDevicePath = "/sys/class/net"
 )
 
-type NICSvc struct {
+type Svc struct {
 	printer    *printer.Svc
-	nicDevSvc  *NICDeviceSvc
+	nicDevSvc  *DeviceSvc
 	nicDevPath string
 }
 
-func NewNICSvc(printer *printer.Svc, nicDevSvc *NICDeviceSvc, basePath string) *NICSvc {
-	return &NICSvc{
+func NewSvc(printer *printer.Svc, nicDevSvc *DeviceSvc, basePath string) *Svc {
+	return &Svc{
 		printer:    printer,
 		nicDevSvc:  nicDevSvc,
 		nicDevPath: path.Join(basePath, CNICDevicePath),
 	}
 }
 
-func (s *NICSvc) GetNICData() ([]NIC, error) {
+func (s *Svc) GetData() ([]Device, error) {
 	nicFolders, err := ioutil.ReadDir(s.nicDevPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to get list of nic folders")
 	}
 
-	var nics []NIC
+	var nics []Device
 	for _, nicFolder := range nicFolders {
 		fName := nicFolder.Name()
 		thePath := path.Join(s.nicDevPath, fName)
-		nic, err := s.nicDevSvc.GetNIC(thePath, fName)
+		nic, err := s.nicDevSvc.GetDevice(thePath, fName)
 		if err != nil {
-			s.printer.VErr(errors.Wrap(err, "unable to collect NIC data"))
+			s.printer.VErr(errors.Wrap(err, "unable to collect Device data"))
 			continue
 		}
 		nics = append(nics, *nic)

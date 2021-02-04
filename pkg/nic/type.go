@@ -1,6 +1,6 @@
 package nic
 
-type CNICType string
+type Type string
 
 const (
 	CNICNETROMType               = "from KA9Q: NET/ROM pseudo"
@@ -71,7 +71,7 @@ const (
 	CNICNoneType                 = "zero header length"
 )
 
-var CNICTypes = map[uint16]CNICType{
+var CTypes = map[uint16]Type{
 	0:      CNICNETROMType,
 	1:      CNICEthernetType,
 	2:      CNICExperimentalEthernetType,

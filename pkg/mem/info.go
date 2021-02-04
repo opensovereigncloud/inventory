@@ -1,35 +1,10 @@
 package mem
 
 import (
-	"bufio"
-	"bytes"
-	"io/ioutil"
-	"path"
-	"regexp"
-	"strconv"
-	"strings"
-
 	"github.com/pkg/errors"
-
-	"github.com/onmetal/inventory/pkg/printer"
 )
 
 const (
-	CProcMemInfoPath = "/proc/meminfo"
-
-	// ^ - begin line
-	// (\w+\s\d+\s)? - optional group to parse NUMA prefix "Node 0 "
-	// ([\w\(\)]+) - property key group
-	// : - colon that separates key from value
-	// \s* - whitespace between colon and value
-	// (\d+) - numerical value
-	// (\s\w*)? - optional measurement unit identifier "kB"
-	// $ - end line
-	CMemInfoLinePattern = "^(\\w+\\s\\d+\\s)?([\\w\\(\\)]+):\\s*(\\d+)(\\s\\w*)?$"
-
-	// meminfo measures in kibibytes
-	CMemInfoValueMultiplier = 1024
-
 	CMemInfoMemTotalKey          = "MemTotal"
 	CMemInfoMemFreeKey           = "MemFree"
 	CMemInfoMemAvailableKey      = "MemAvailable"
@@ -97,9 +72,7 @@ const (
 	CMemInfoFilePagesKey = "FilePages"
 )
 
-var CMemInfoLineRegexp = regexp.MustCompile(CMemInfoLinePattern)
-
-type MemInfo struct {
+type Info struct {
 	MemTotal          uint64
 	MemFree           uint64
 	MemAvailable      uint64
@@ -167,7 +140,7 @@ type MemInfo struct {
 	FilePages uint64
 }
 
-func (mem *MemInfo) setField(key string, val uint64) error {
+func (mem *Info) setField(key string, val uint64) error {
 	switch key {
 	case CMemInfoMemTotalKey:
 		mem.MemTotal = val
@@ -301,65 +274,4 @@ func (mem *MemInfo) setField(key string, val uint64) error {
 		return errors.Errorf("unknown key %s from meminfo", key)
 	}
 	return nil
-}
-
-type MemInfoSvc struct {
-	printer     *printer.Svc
-	memInfoPath string
-}
-
-func NewMemInfoSvc(printer *printer.Svc, basePath string) *MemInfoSvc {
-	return &MemInfoSvc{
-		printer:     printer,
-		memInfoPath: path.Join(basePath, CProcMemInfoPath),
-	}
-}
-
-func (s *MemInfoSvc) GetMemInfo() (*MemInfo, error) {
-	return s.GetMemInfoFromFile(s.memInfoPath)
-}
-
-func (s *MemInfoSvc) GetMemInfoFromFile(thePath string) (*MemInfo, error) {
-	memInfoData, err := ioutil.ReadFile(thePath)
-	if err != nil {
-		return nil, errors.Wrapf(err, "unable to read meminfo from %s", thePath)
-	}
-
-	mem := &MemInfo{}
-
-	bufReader := bytes.NewReader(memInfoData)
-	scanner := bufio.NewScanner(bufReader)
-	for scanner.Scan() {
-		line := scanner.Text()
-
-		groups := CMemInfoLineRegexp.FindStringSubmatch(line)
-
-		// should contain 5 groups according to regexp
-		// [0] self; [1] NUMA prefix; [2] key; [3] value; [4] measurement unit
-		if len(groups) < 5 {
-			continue
-		}
-
-		key := groups[2]
-		valString := groups[3]
-
-		val, err := strconv.ParseUint(valString, 10, 64)
-		if err != nil {
-			s.printer.VErr(errors.Wrapf(err, "unable to parse %s:%s into uint64", key, valString))
-			continue
-		}
-
-		// check if measurement unit is applied to the value
-		// if applied, multiply to get bytes
-		if strings.TrimSpace(groups[4]) != "" {
-			val = val * CMemInfoValueMultiplier
-		}
-
-		err = mem.setField(key, val)
-		if err != nil {
-			s.printer.VErr(errors.Wrapf(err, "unable to set %s:%d", key, val))
-		}
-	}
-
-	return mem, nil
 }

@@ -4,7 +4,7 @@ const (
 	CNICFlagsMaxFlagCount = 19
 )
 
-type NICFlags struct {
+type Flags struct {
 	Up                         bool
 	Broadcast                  bool
 	Debug                      bool
@@ -26,8 +26,8 @@ type NICFlags struct {
 	Echo                       bool
 }
 
-func NewNICFlags(flagsNum uint32) *NICFlags {
-	flags := &NICFlags{}
+func NewFlags(flagsNum uint32) *Flags {
+	flags := &Flags{}
 
 	for i := 0; i < CNICFlagsMaxFlagCount; i++ {
 		idx := uint32(1 << i)
@@ -38,7 +38,7 @@ func NewNICFlags(flagsNum uint32) *NICFlags {
 	return flags
 }
 
-func (s *NICFlags) setByIndex(idx int, val bool) {
+func (s *Flags) setByIndex(idx int, val bool) {
 	switch idx {
 	case 0:
 		s.Up = val

@@ -4,26 +4,26 @@ import (
 	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
 
-	chroot2 "github.com/onmetal/inventory/pkg/chroot"
+	"github.com/onmetal/inventory/pkg/chroot"
 	"github.com/onmetal/inventory/pkg/printer"
 )
 
-type NetlinkSvc struct {
+type Svc struct {
 	printer  *printer.Svc
 	rootPath string
 }
 
-func NewNetlinkSvc(printer *printer.Svc, basePath string) *NetlinkSvc {
-	return &NetlinkSvc{
+func NewSvc(printer *printer.Svc, basePath string) *Svc {
+	return &Svc{
 		printer:  printer,
 		rootPath: basePath,
 	}
 }
 
-func (s *NetlinkSvc) GetIPv6NeighbourData() ([]IPv6Neighbour, error) {
-	chroot, err := chroot2.New(s.rootPath)
+func (s *Svc) GetIPv6NeighbourData() ([]IPv6Neighbour, error) {
+	chr, err := chroot.New(s.rootPath)
 	defer func() {
-		if err := chroot.Close(); err != nil {
+		if err := chr.Close(); err != nil {
 			s.printer.VErr(errors.Wrapf(err, "unable to exit chroot"))
 		}
 	}()

@@ -15,13 +15,13 @@ import (
 
 type Inventory struct {
 	DMI           *dmi.DMI
-	MemInfo       *mem.MemInfo
+	MemInfo       *mem.Info
 	CPUInfo       []cpu.Info
 	NumaNodes     []numa.Node
 	BlockDevices  []block.Device
 	PCIBusDevices []pci.Bus
-	IPMIDevices   []ipmi.IPMIDeviceInfo
-	NICs          []nic.NIC
-	LLDPFrames    []lldp.LLDPFrameInfo
+	IPMIDevices   []ipmi.Device
+	NICs          []nic.Device
+	LLDPFrames    []lldp.Frame
 	NDPFrames     []netlink.IPv6Neighbour
 }

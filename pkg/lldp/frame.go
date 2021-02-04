@@ -3,80 +3,27 @@ package lldp
 import (
 	"encoding/binary"
 	"encoding/hex"
-	"io/ioutil"
 	"net"
 	"time"
 
 	"github.com/mdlayher/lldp"
 	"github.com/pkg/errors"
-
-	"github.com/onmetal/inventory/pkg/printer"
 )
 
-type LLDPFrameInfo struct {
+type Frame struct {
 	InterfaceID         string
 	ChassisID           string
 	SystemName          string
 	SystemDescription   string
-	Capabilities        []LLDPCapability
-	EnabledCapabilities []LLDPCapability
+	Capabilities        []Capability
+	EnabledCapabilities []Capability
 	PortID              string
 	PortDescription     string
 	ManagementAddresses []string
 	TTL                 time.Duration
 }
 
-type LLDPFrameInfoSvc struct {
-	printer *printer.Svc
-}
-
-func NewLLDPFrameInfoSvc(printer *printer.Svc) *LLDPFrameInfoSvc {
-	return &LLDPFrameInfoSvc{
-		printer: printer,
-	}
-}
-
-func (s *LLDPFrameInfoSvc) GetLLDPFrameInfo(interfaceID string, thePath string) (*LLDPFrameInfo, error) {
-	contents, err := ioutil.ReadFile(thePath)
-	if err != nil {
-		return nil, errors.Wrapf(err, "unable to read file %s", thePath)
-	}
-
-	// 1-8 bytes - ?
-	// 9-22 bytes - ethernet frame part
-	// 23-rest - LLDP frame part
-	frame := lldp.Frame{}
-	err = frame.UnmarshalBinary(contents[22:])
-	if err != nil {
-		return nil, errors.Wrap(err, "unable to unmarshal LLDP frame")
-	}
-
-	frameInfo := &LLDPFrameInfo{
-		InterfaceID: interfaceID,
-		TTL:         frame.TTL,
-	}
-
-	err = frameInfo.setChassisID(frame.ChassisID)
-	if err != nil {
-		s.printer.VErr(errors.Wrap(err, "unable to set chassis ID"))
-	}
-
-	err = frameInfo.setPortID(frame.PortID)
-	if err != nil {
-		s.printer.VErr(errors.Wrap(err, "unable to unmarshal port ID"))
-	}
-
-	for _, tlv := range frame.Optional {
-		err = frameInfo.setOptional(tlv)
-		if err != nil {
-			s.printer.VErr(errors.Wrap(err, "unable to process optional TLV"))
-		}
-	}
-
-	return frameInfo, nil
-}
-
-func (f *LLDPFrameInfo) setChassisID(chassisID *lldp.ChassisID) error {
+func (f *Frame) setChassisID(chassisID *lldp.ChassisID) error {
 	switch chassisID.Subtype {
 	case lldp.ChassisIDSubtypeChassisComponenent:
 		fallthrough
@@ -108,7 +55,7 @@ func (f *LLDPFrameInfo) setChassisID(chassisID *lldp.ChassisID) error {
 	return nil
 }
 
-func (f *LLDPFrameInfo) setPortID(portID *lldp.PortID) error {
+func (f *Frame) setPortID(portID *lldp.PortID) error {
 	switch portID.Subtype {
 	case lldp.PortIDSubtypeInterfaceAlias:
 		fallthrough
@@ -138,7 +85,7 @@ func (f *LLDPFrameInfo) setPortID(portID *lldp.PortID) error {
 	return nil
 }
 
-func (f *LLDPFrameInfo) setOptional(tlv *lldp.TLV) error {
+func (f *Frame) setOptional(tlv *lldp.TLV) error {
 	switch tlv.Type {
 	case lldp.TLVTypeSystemName:
 		f.setSystemName(tlv.Value)
@@ -161,19 +108,19 @@ func (f *LLDPFrameInfo) setOptional(tlv *lldp.TLV) error {
 	return nil
 }
 
-func (f *LLDPFrameInfo) setSystemName(val []byte) {
+func (f *Frame) setSystemName(val []byte) {
 	f.SystemName = string(val)
 }
 
-func (f *LLDPFrameInfo) setSystemDescription(val []byte) {
+func (f *Frame) setSystemDescription(val []byte) {
 	f.SystemDescription = string(val)
 }
 
-func (f *LLDPFrameInfo) setPortDescription(val []byte) {
+func (f *Frame) setPortDescription(val []byte) {
 	f.PortDescription = string(val)
 }
 
-func (f *LLDPFrameInfo) setSystemCapability(val []byte) {
+func (f *Frame) setSystemCapability(val []byte) {
 	capabilities := binary.BigEndian.Uint16(val[0:2])
 	enabledCapabilities := binary.BigEndian.Uint16(val[2:4])
 
@@ -191,23 +138,23 @@ func (f *LLDPFrameInfo) setSystemCapability(val []byte) {
 	}
 }
 
-func (f *LLDPFrameInfo) addCapability(capability LLDPCapability) {
+func (f *Frame) addCapability(capability Capability) {
 	if f.Capabilities == nil {
-		f.Capabilities = make([]LLDPCapability, 0)
+		f.Capabilities = make([]Capability, 0)
 	}
 
 	f.Capabilities = append(f.Capabilities, capability)
 }
 
-func (f *LLDPFrameInfo) addEnabledCapability(capability LLDPCapability) {
+func (f *Frame) addEnabledCapability(capability Capability) {
 	if f.EnabledCapabilities == nil {
-		f.EnabledCapabilities = make([]LLDPCapability, 0)
+		f.EnabledCapabilities = make([]Capability, 0)
 	}
 
 	f.EnabledCapabilities = append(f.EnabledCapabilities, capability)
 }
 
-func (f *LLDPFrameInfo) setManagementAddress(val []byte) error {
+func (f *Frame) setManagementAddress(val []byte) error {
 	var addressBytes []byte
 
 	valLen := len(val)
@@ -231,7 +178,7 @@ func (f *LLDPFrameInfo) setManagementAddress(val []byte) error {
 	return nil
 }
 
-func (f *LLDPFrameInfo) addManagementAddress(address string) {
+func (f *Frame) addManagementAddress(address string) {
 	if f.ManagementAddresses == nil {
 		f.ManagementAddresses = make([]string, 0)
 	}

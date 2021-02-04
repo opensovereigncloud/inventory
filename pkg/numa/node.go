@@ -8,6 +8,6 @@ type Node struct {
 	ID       int
 	CPUs     []int
 	Distance int
-	Memory   *mem.MemInfo
+	Memory   *mem.Info
 	Stat     *Stat
 }
