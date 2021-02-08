@@ -98,7 +98,7 @@ func SystemInformationFromSpec24(ref *SystemInformationRefSpec24, strings []stri
 	// Reducing all values by one since structure contains element number
 	// and we need an element index for the array
 	info.SKUNumber = strings[ref.SKUNumber-1]
-	info.SKUNumber = strings[ref.Family-1]
+	info.Family = strings[ref.Family-1]
 
 	return info
 }
