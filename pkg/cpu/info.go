@@ -45,22 +45,22 @@ type Info struct {
 	ModelName       string
 	Stepping        string
 	Microcode       string
-	CPUMHz          float64
+	CPUMHz          string
 	CacheSize       string
-	PhysicalID      string
+	PhysicalID      uint64
 	Siblings        uint64
 	CoreID          string
 	CpuCores        uint64
 	APICID          string
 	InitialAPICID   string
-	FPU             string
-	FPUException    string
+	FPU             bool
+	FPUException    bool
 	CPUIDLevel      uint64
-	WP              string
+	WP              bool
 	Flags           []string
 	VMXFlags        []string
 	Bugs            []string
-	BogoMIPS        float64
+	BogoMIPS        string
 	CLFlushSize     uint64
 	CacheAlignment  uint64
 	AddressSizes    string
@@ -88,15 +88,15 @@ func (ci *Info) setField(key string, val string) error {
 	case CCPUInfoMicrocodeKey:
 		ci.Microcode = val
 	case CCPUInfoCPUMHzKey:
-		v, err := strconv.ParseFloat(val, 64)
-		if err != nil {
-			return errors.Wrapf(err, "unable to convert %s to float", val)
-		}
-		ci.CPUMHz = v
+		ci.CPUMHz = val
 	case CCPUInfoCacheSizeKey:
 		ci.CacheSize = val
 	case CCPUInfoPhysicalIDKey:
-		ci.PhysicalID = val
+		v, err := strconv.ParseUint(val, 0, 64)
+		if err != nil {
+			return errors.Wrapf(err, "unable to convert %s to uint", val)
+		}
+		ci.PhysicalID = v
 	case CCPUInfoSiblingsKey:
 		v, err := strconv.ParseUint(val, 0, 64)
 		if err != nil {
@@ -116,9 +116,17 @@ func (ci *Info) setField(key string, val string) error {
 	case CCPUInfoInitialAPICIDKey:
 		ci.InitialAPICID = val
 	case CCPUInfoFPUKey:
-		ci.FPU = val
+		var v bool
+		if val == "yes" {
+			v = true
+		}
+		ci.FPU = v
 	case CCPUInfoFPUExceptionKey:
-		ci.FPUException = val
+		var v bool
+		if val == "yes" {
+			v = true
+		}
+		ci.FPUException = v
 	case CCPUInfoCPUIDLevelKey:
 		v, err := strconv.ParseUint(val, 0, 64)
 		if err != nil {
@@ -126,7 +134,11 @@ func (ci *Info) setField(key string, val string) error {
 		}
 		ci.CPUIDLevel = v
 	case CCPUInfoWPKey:
-		ci.WP = val
+		var v bool
+		if val == "yes" {
+			v = true
+		}
+		ci.WP = v
 	case CCPUInfoFlagsKey:
 		v := strings.Split(val, " ")
 		ci.Flags = v
@@ -137,11 +149,7 @@ func (ci *Info) setField(key string, val string) error {
 		v := strings.Split(val, " ")
 		ci.Bugs = v
 	case CCPUInfoBogoMIPSKey:
-		v, err := strconv.ParseFloat(val, 64)
-		if err != nil {
-			return errors.Wrapf(err, "unable to convert %s to float", val)
-		}
-		ci.BogoMIPS = v
+		ci.BogoMIPS = val
 	case CCPUInfoCLFlushSizeKey:
 		v, err := strconv.ParseUint(val, 0, 64)
 		if err != nil {

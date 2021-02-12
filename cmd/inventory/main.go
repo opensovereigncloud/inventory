@@ -3,14 +3,14 @@ package main
 import (
 	"os"
 
-	"github.com/onmetal/inventory/pkg/inventory"
+	"github.com/onmetal/inventory/pkg/gatherer"
 )
 
 func main() {
-	is, ret := inventory.NewSvc()
+	is, ret := gatherer.NewSvc()
 	if ret != 0 {
 		os.Exit(ret)
 	}
-	ret = is.Inventorize()
+	ret = is.Gather()
 	os.Exit(ret)
 }
