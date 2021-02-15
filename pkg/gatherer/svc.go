@@ -132,17 +132,16 @@ func (s *Svc) Gather() int {
 
 	jsonBytes, err := json.Marshal(inv)
 	if err != nil {
-		s.printer.Err(errors.Wrap(err, "unable to marshal result to json"))
-		return CErrRetCode
+		s.printer.VErr(errors.Wrap(err, "unable to marshal result to json"))
 	}
 
 	var prettifiedJsonBuf bytes.Buffer
 	if err := json.Indent(&prettifiedJsonBuf, jsonBytes, "", "\t"); err != nil {
-		s.printer.Err(errors.Wrap(err, "unable to indent json"))
-		return CErrRetCode
+		s.printer.VErr(errors.Wrap(err, "unable to indent json"))
 	}
 
-	s.printer.Out(prettifiedJsonBuf.String())
+	s.printer.VOut("Gathered data:")
+	s.printer.VOut(prettifiedJsonBuf.String())
 
 	if err := s.crdSvc.BuildAndSave(inv); err != nil {
 		s.printer.Err(errors.Wrap(err, "unable to save inventory resource"))
