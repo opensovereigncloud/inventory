@@ -268,7 +268,9 @@ func (s *Svc) setCPUs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 			AddressSizes:    cpuInfo.AddressSizes,
 			PowerManagement: cpuInfo.PowerManagement,
 		}
-
+		sort.Strings(cpu.Flags)
+		sort.Strings(cpu.VMXFlags)
+		sort.Strings(cpu.Bugs)
 		sort.Slice(cpu.LogicalIDs, func(i, j int) bool {
 			return cpu.LogicalIDs[i] < cpu.LogicalIDs[j]
 		})
