@@ -2,6 +2,7 @@ package crd
 
 import (
 	"context"
+	"sort"
 	"strconv"
 
 	"github.com/pkg/errors"
@@ -128,7 +129,7 @@ func (s *Svc) setIPMIs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 		return
 	}
 
-	cr.Spec.IPMIs = make([]apiv1alpha1.IPMISpec, ipmiDevCount)
+	ipmis := make([]apiv1alpha1.IPMISpec, ipmiDevCount)
 
 	for i, ipmiDev := range inv.IPMIDevices {
 		ipmi := apiv1alpha1.IPMISpec{
@@ -136,8 +137,16 @@ func (s *Svc) setIPMIs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 			MACAddress: ipmiDev.MACAddress,
 		}
 
-		cr.Spec.IPMIs[i] = ipmi
+		ipmis[i] = ipmi
 	}
+
+	sort.Slice(ipmis, func(i, j int) bool {
+		iStr := ipmis[i].MACAddress + ipmis[i].IPAddress
+		jStr := ipmis[j].MACAddress + ipmis[j].IPAddress
+		return iStr < jStr
+	})
+
+	cr.Spec.IPMIs = ipmis
 }
 
 func (s *Svc) setBlocks(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
@@ -145,7 +154,7 @@ func (s *Svc) setBlocks(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 		return
 	}
 
-	cr.Spec.Blocks = make([]apiv1alpha1.BlockSpec, 0)
+	blocks := make([]apiv1alpha1.BlockSpec, 0)
 
 	for _, blockDev := range inv.BlockDevices {
 		// Filter non physical devices
@@ -175,6 +184,10 @@ func (s *Svc) setBlocks(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 					parts[i] = part
 				}
 
+				sort.Slice(parts, func(i, j int) bool {
+					return parts[i].ID < parts[j].ID
+				})
+
 				partitionTable.Partitions = parts
 			}
 		}
@@ -189,8 +202,14 @@ func (s *Svc) setBlocks(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 			PartitionTable: partitionTable,
 		}
 
-		cr.Spec.Blocks = append(cr.Spec.Blocks, block)
+		blocks = append(blocks, block)
 	}
+
+	sort.Slice(blocks, func(i, j int) bool {
+		return blocks[i].Name < blocks[j].Name
+	})
+
+	cr.Spec.Blocks = blocks
 }
 
 func (s *Svc) setMemory(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
@@ -250,13 +269,23 @@ func (s *Svc) setCPUs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 			PowerManagement: cpuInfo.PowerManagement,
 		}
 
+		sort.Slice(cpu.LogicalIDs, func(i, j int) bool {
+			return cpu.LogicalIDs[i] < cpu.LogicalIDs[j]
+		})
+
 		cpuMarkMap[cpuInfo.PhysicalID] = cpu
 	}
 
-	cpuTotal.CPUs = make([]apiv1alpha1.CPUSpec, 0)
+	cpus := make([]apiv1alpha1.CPUSpec, 0)
 	for _, v := range cpuMarkMap {
-		cpuTotal.CPUs = append(cpuTotal.CPUs, v)
+		cpus = append(cpus, v)
 	}
+
+	sort.Slice(cpus, func(i, j int) bool {
+		return cpus[i].PhysicalID < cpus[j].PhysicalID
+	})
+
+	cpuTotal.CPUs = cpus
 
 	cr.Spec.CPUs = cpuTotal
 }
@@ -311,17 +340,34 @@ func (s *Svc) setNICs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 			continue
 		}
 
+		lldps := lldpMap[int(nic.InterfaceIndex)]
+		sort.Slice(lldps, func(i, j int) bool {
+			iStr := lldps[i].ChassisID + lldps[i].PortID
+			jStr := lldps[j].ChassisID + lldps[j].PortID
+			return iStr < jStr
+		})
+		ndps := ndpMap[int(nic.InterfaceIndex)]
+		sort.Slice(ndps, func(i, j int) bool {
+			iStr := ndps[i].MACAddress + ndps[i].IPAddress
+			jStr := ndps[j].MACAddress + ndps[j].IPAddress
+			return iStr < jStr
+		})
+
 		ns := apiv1alpha1.NICSpec{
 			Name:       nic.Name,
 			PCIAddress: nic.PCIAddress,
 			MACAddress: nic.Address,
 			MTU:        nic.MTU,
 			Speed:      nic.Speed,
-			LLDPs:      lldpMap[int(nic.InterfaceIndex)],
-			NDPs:       ndpMap[int(nic.InterfaceIndex)],
+			LLDPs:      lldps,
+			NDPs:       ndps,
 		}
 		nics = append(nics, ns)
 	}
+
+	sort.Slice(nics, func(i, j int) bool {
+		return nics[i].Name < nics[j].Name
+	})
 
 	cr.Spec.NICs = nics
 }
