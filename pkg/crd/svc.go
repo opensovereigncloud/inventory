@@ -15,6 +15,7 @@ import (
 	clientv1alpha1 "github.com/onmetal/k8s-inventory/clientset/v1alpha1"
 
 	"github.com/onmetal/inventory/pkg/inventory"
+	"github.com/onmetal/inventory/pkg/netlink"
 )
 
 type Svc struct {
@@ -147,6 +148,7 @@ func (s *Svc) setBlocks(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	cr.Spec.Blocks = make([]apiv1alpha1.BlockSpec, 0)
 
 	for _, blockDev := range inv.BlockDevices {
+		// Filter non physical devices
 		if blockDev.Type == "" {
 			continue
 		}
@@ -284,6 +286,11 @@ func (s *Svc) setNICs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 
 	ndpMap := make(map[int][]apiv1alpha1.NDPSpec)
 	for _, ndp := range inv.NDPFrames {
+		// filtering no arp as ip neigh does
+		if ndp.State == netlink.CNeighbourNoARPCacheState {
+			continue
+		}
+
 		n := apiv1alpha1.NDPSpec{
 			IPAddress:  ndp.IP,
 			MACAddress: ndp.MACAddress,
@@ -299,6 +306,7 @@ func (s *Svc) setNICs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 
 	nics := make([]apiv1alpha1.NICSpec, 0)
 	for _, nic := range inv.NICs {
+		// filter non-physical interfaces
 		if nic.PCIAddress == "" {
 			continue
 		}
