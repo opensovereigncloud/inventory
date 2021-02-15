@@ -1,4 +1,4 @@
-package inventory
+package gatherer
 
 import (
 	"bytes"
@@ -8,8 +8,10 @@ import (
 
 	"github.com/onmetal/inventory/pkg/block"
 	"github.com/onmetal/inventory/pkg/cpu"
+	"github.com/onmetal/inventory/pkg/crd"
 	"github.com/onmetal/inventory/pkg/dmi"
 	"github.com/onmetal/inventory/pkg/flags"
+	"github.com/onmetal/inventory/pkg/inventory"
 	"github.com/onmetal/inventory/pkg/ipmi"
 	"github.com/onmetal/inventory/pkg/lldp"
 	"github.com/onmetal/inventory/pkg/mem"
@@ -28,6 +30,8 @@ const (
 type Svc struct {
 	printer *printer.Svc
 
+	crdSvc *crd.Svc
+
 	dmiSvc     *dmi.Svc
 	numaSvc    *numa.Svc
 	blockSvc   *block.Svc
@@ -44,6 +48,12 @@ func NewSvc() (*Svc, int) {
 	f := flags.NewFlags()
 
 	p := printer.NewSvc(f.Verbose)
+
+	crdSvc, err := crd.NewSvc(f.Kubeconfig, f.KubeNamespace)
+	if err != nil {
+		p.Err(errors.Wrapf(err, "unable to create k8s resorce svc"))
+		return nil, CErrRetCode
+	}
 
 	pciIDs, err := pci.NewIDs()
 	if err != nil {
@@ -83,6 +93,7 @@ func NewSvc() (*Svc, int) {
 
 	return &Svc{
 		printer:    p,
+		crdSvc:     crdSvc,
 		dmiSvc:     dmiSvc,
 		numaSvc:    numaSvc,
 		blockSvc:   blockSvc,
@@ -96,48 +107,52 @@ func NewSvc() (*Svc, int) {
 	}, 0
 }
 
-func (is *Svc) Inventorize() int {
-	inv := &Inventory{}
+func (s *Svc) Gather() int {
+	inv := &inventory.Inventory{}
 
-	setters := []func(inventory *Inventory) error{
-		is.setDMI,
-		is.setCPUInfo,
-		is.setMemInfo,
-		is.setNumaNodes,
-		is.setBlockDevices,
-		is.setPCIBusDevices,
-		is.setIPMIDevices,
-		is.setNICs,
-		is.setLLDPFrames,
-		is.setNDPFrames,
+	setters := []func(inventory *inventory.Inventory) error{
+		s.setDMI,
+		s.setCPUInfo,
+		s.setMemInfo,
+		s.setNumaNodes,
+		s.setBlockDevices,
+		s.setPCIBusDevices,
+		s.setIPMIDevices,
+		s.setNICs,
+		s.setLLDPFrames,
+		s.setNDPFrames,
 	}
 
 	for _, setter := range setters {
 		err := setter(inv)
 		if err != nil {
-			is.printer.VErr(errors.Wrap(err, "unable to set value"))
+			s.printer.VErr(errors.Wrap(err, "unable to set value"))
 		}
 	}
 
 	jsonBytes, err := json.Marshal(inv)
 	if err != nil {
-		is.printer.Err(errors.Wrap(err, "unable to marshal result to json"))
-		return CErrRetCode
+		s.printer.VErr(errors.Wrap(err, "unable to marshal result to json"))
 	}
 
 	var prettifiedJsonBuf bytes.Buffer
 	if err := json.Indent(&prettifiedJsonBuf, jsonBytes, "", "\t"); err != nil {
-		is.printer.Err(errors.Wrap(err, "unable to indent json"))
-		return CErrRetCode
+		s.printer.VErr(errors.Wrap(err, "unable to indent json"))
 	}
 
-	is.printer.Out(prettifiedJsonBuf.String())
+	s.printer.VOut("Gathered data:")
+	s.printer.VOut(prettifiedJsonBuf.String())
+
+	if err := s.crdSvc.BuildAndSave(inv); err != nil {
+		s.printer.Err(errors.Wrap(err, "unable to save inventory resource"))
+		return CErrRetCode
+	}
 
 	return COKRetCode
 }
 
-func (is *Svc) setDMI(inv *Inventory) error {
-	data, err := is.dmiSvc.GetData()
+func (s *Svc) setDMI(inv *inventory.Inventory) error {
+	data, err := s.dmiSvc.GetData()
 	if err != nil {
 		return errors.Wrap(err, "unable to get dmi data")
 	}
@@ -145,8 +160,8 @@ func (is *Svc) setDMI(inv *Inventory) error {
 	return nil
 }
 
-func (is *Svc) setCPUInfo(inv *Inventory) error {
-	data, err := is.cpuInfoSvc.GetInfo()
+func (s *Svc) setCPUInfo(inv *inventory.Inventory) error {
+	data, err := s.cpuInfoSvc.GetInfo()
 	if err != nil {
 		return errors.Wrap(err, "unable to get proc data")
 	}
@@ -154,8 +169,8 @@ func (is *Svc) setCPUInfo(inv *Inventory) error {
 	return nil
 }
 
-func (is *Svc) setMemInfo(inv *Inventory) error {
-	data, err := is.memInfoSvc.GetInfo()
+func (s *Svc) setMemInfo(inv *inventory.Inventory) error {
+	data, err := s.memInfoSvc.GetInfo()
 	if err != nil {
 		return errors.Wrap(err, "unable to get proc data")
 	}
@@ -163,8 +178,8 @@ func (is *Svc) setMemInfo(inv *Inventory) error {
 	return nil
 }
 
-func (is *Svc) setNumaNodes(inv *Inventory) error {
-	data, err := is.numaSvc.GetData()
+func (s *Svc) setNumaNodes(inv *inventory.Inventory) error {
+	data, err := s.numaSvc.GetData()
 	if err != nil {
 		return errors.Wrap(err, "unable to get numa data")
 	}
@@ -172,8 +187,8 @@ func (is *Svc) setNumaNodes(inv *Inventory) error {
 	return nil
 }
 
-func (is *Svc) setBlockDevices(inv *Inventory) error {
-	data, err := is.blockSvc.GetData()
+func (s *Svc) setBlockDevices(inv *inventory.Inventory) error {
+	data, err := s.blockSvc.GetData()
 	if err != nil {
 		return errors.Wrap(err, "unable to get block data")
 	}
@@ -181,8 +196,8 @@ func (is *Svc) setBlockDevices(inv *Inventory) error {
 	return nil
 }
 
-func (is *Svc) setPCIBusDevices(inv *Inventory) error {
-	data, err := is.pciSvc.GetData()
+func (s *Svc) setPCIBusDevices(inv *inventory.Inventory) error {
+	data, err := s.pciSvc.GetData()
 	if err != nil {
 		return errors.Wrap(err, "unable to get pci data")
 	}
@@ -190,8 +205,8 @@ func (is *Svc) setPCIBusDevices(inv *Inventory) error {
 	return nil
 }
 
-func (is *Svc) setIPMIDevices(inv *Inventory) error {
-	data, err := is.ipmiSvc.GetData()
+func (s *Svc) setIPMIDevices(inv *inventory.Inventory) error {
+	data, err := s.ipmiSvc.GetData()
 	if err != nil {
 		return errors.Wrap(err, "unable to get ipmi data")
 	}
@@ -199,8 +214,8 @@ func (is *Svc) setIPMIDevices(inv *Inventory) error {
 	return nil
 }
 
-func (is *Svc) setNICs(inv *Inventory) error {
-	data, err := is.nicSvc.GetData()
+func (s *Svc) setNICs(inv *inventory.Inventory) error {
+	data, err := s.nicSvc.GetData()
 	if err != nil {
 		return errors.Wrap(err, "unable to get nic data")
 	}
@@ -208,8 +223,8 @@ func (is *Svc) setNICs(inv *Inventory) error {
 	return nil
 }
 
-func (is *Svc) setLLDPFrames(inv *Inventory) error {
-	data, err := is.lldpSvc.GetData()
+func (s *Svc) setLLDPFrames(inv *inventory.Inventory) error {
+	data, err := s.lldpSvc.GetData()
 	if err != nil {
 		return errors.Wrap(err, "unable to get lldp data")
 	}
@@ -217,8 +232,8 @@ func (is *Svc) setLLDPFrames(inv *Inventory) error {
 	return nil
 }
 
-func (is *Svc) setNDPFrames(inv *Inventory) error {
-	data, err := is.netlinkSvc.GetIPv6NeighbourData()
+func (s *Svc) setNDPFrames(inv *inventory.Inventory) error {
+	data, err := s.netlinkSvc.GetIPv6NeighbourData()
 	if err != nil {
 		return errors.Wrap(err, "unable to get ndp data")
 	}
