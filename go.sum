@@ -74,6 +74,8 @@ github.com/coreos/pkg v0.0.0-20160727233714-3ac0863d7acf/go.mod h1:E3G3o1h8I7cfc
 github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f/go.mod h1:E3G3o1h8I7cfcXa63jLwjI0eiQQMgzzUDFVpN/nH/eA=
 github.com/cpuguy83/go-md2man/v2 v2.0.0/go.mod h1:maD7wRr/U5Z6m/iR4s+kqSMx2CaBsrgA7czyZG/E6dU=
 github.com/creack/pty v1.1.7/go.mod h1:lj5s0c3V2DBrqTV7llrYr5NG6My20zk30Fl46Y7DoTY=
+github.com/d4l3k/messagediff v1.2.1 h1:ZcAIMYsUg0EAp9X+tt8/enBE/Q8Yd5kzPynLyKptt9U=
+github.com/d4l3k/messagediff v1.2.1/go.mod h1:Oozbb1TVXFac9FtSIxHBMnBCq2qeH/2KkEQxENCrlLo=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
@@ -289,6 +291,8 @@ github.com/onmetal/k8s-inventory v0.0.0-20210211195027-2e5a99bb2cdb h1:tUG6sgoeT
 github.com/onmetal/k8s-inventory v0.0.0-20210211195027-2e5a99bb2cdb/go.mod h1:EFaGf5BOS1gGYOliZ16Qz7fM/G7RgSKtzTq0fygYR1E=
 github.com/onmetal/k8s-inventory v0.0.0-20210211210435-6f3c4ddddadd h1:ze1lg6gVu+QKAghDPS1wXBibYJ3/YW7X4rk76Puy9Rs=
 github.com/onmetal/k8s-inventory v0.0.0-20210211210435-6f3c4ddddadd/go.mod h1:EFaGf5BOS1gGYOliZ16Qz7fM/G7RgSKtzTq0fygYR1E=
+github.com/onmetal/k8s-inventory v0.0.0-20210217070435-9094930a2250 h1:RURWZd3/FgSbm5pXTjiFT8fC8VzgdjBfoX7BPjnflbQ=
+github.com/onmetal/k8s-inventory v0.0.0-20210217070435-9094930a2250/go.mod h1:+6j0HzWu9ZXfRsFYYaCGJq+UAC3l2WLn9xpNcfJ0s2Y=
 github.com/onsi/ginkgo v0.0.0-20170829012221-11459a886d9c/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
 github.com/onsi/ginkgo v1.6.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
 github.com/onsi/ginkgo v1.11.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=

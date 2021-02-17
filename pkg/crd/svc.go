@@ -155,6 +155,7 @@ func (s *Svc) setBlocks(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	}
 
 	blocks := make([]apiv1alpha1.BlockSpec, 0)
+	var capacity uint64 = 0
 
 	for _, blockDev := range inv.BlockDevices {
 		// Filter non physical devices
@@ -202,6 +203,7 @@ func (s *Svc) setBlocks(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 			PartitionTable: partitionTable,
 		}
 
+		capacity += blockDev.Size
 		blocks = append(blocks, block)
 	}
 
@@ -209,7 +211,11 @@ func (s *Svc) setBlocks(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 		return blocks[i].Name < blocks[j].Name
 	})
 
-	cr.Spec.Blocks = blocks
+	cr.Spec.Blocks = &apiv1alpha1.BlockTotalSpec{
+		Count:    uint64(len(blocks)),
+		Capacity: capacity,
+		Blocks:   blocks,
+	}
 }
 
 func (s *Svc) setMemory(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
@@ -371,5 +377,8 @@ func (s *Svc) setNICs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 		return nics[i].Name < nics[j].Name
 	})
 
-	cr.Spec.NICs = nics
+	cr.Spec.NICs = &apiv1alpha1.NICTotalSpec{
+		Count: uint64(len(nics)),
+		NICs:  nics,
+	}
 }
