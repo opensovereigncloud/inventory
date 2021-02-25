@@ -44,6 +44,15 @@ func (s *Svc) GetData() (*DMI, error) {
 
 	for _, structure := range structures {
 		switch structure.Header.Type {
+		case CBoardInformationHeaderType:
+			boardInfo, err := s.parseBoardInformation(structure, version)
+			if err != nil {
+				s.printer.VErr(errors.Wrap(err, "unable to parse board info"))
+			}
+			if dmi.BoardInformation == nil {
+				dmi.BoardInformation = []BoardInformation{}
+			}
+			dmi.BoardInformation = append(dmi.BoardInformation, *boardInfo)
 		case CBIOSInformationHeaderType:
 			biosInfo, err := s.parseBiosInformation(structure, version)
 			if err != nil {
@@ -62,6 +71,16 @@ func (s *Svc) GetData() (*DMI, error) {
 	return dmi, nil
 }
 
+func (s *Svc) parseBoardInformation(structure *smbios.Structure, version *SMBIOSVersion) (*BoardInformation, error) {
+	ref := &BoardInformationRefSpec{}
+
+	if err := struc.Unpack(bytes.NewReader(structure.Formatted), ref); err != nil {
+		return nil, errors.Wrap(err, "unable to unpack structure")
+	}
+
+	return BoardInformationFromSpec(ref, structure.Strings), nil
+}
+
 func (s *Svc) parseBiosInformation(structure *smbios.Structure, version *SMBIOSVersion) (*BIOSInformation, error) {
 	// Spec contains info only for 2.0+
 	if version.Lesser(&SMBIOSVersion{2, 0, 0}) {
@@ -71,7 +90,6 @@ func (s *Svc) parseBiosInformation(structure *smbios.Structure, version *SMBIOSV
 	// 3.1+
 	if version.GreaterOrEqual(&SMBIOSVersion{3, 1, 0}) {
 		ref := &BIOSInformationRefSpec31{}
-		// Adding header size (type 1b + length 1b + handle 1w), since it is not included into the bytearray
 		// Subtracting base structure offset (12b)
 		// Subtracting 4 bytes going after extension byte array
 		// Subtracting 2 bytes going after extension byte array
@@ -85,7 +103,6 @@ func (s *Svc) parseBiosInformation(structure *smbios.Structure, version *SMBIOSV
 	// 2.4+
 	if version.GreaterOrEqual(&SMBIOSVersion{2, 4, 0}) {
 		ref := &BIOSInformationRefSpec24{}
-		// Adding header size (type 1b + length 1b + handle 1w), since it is not included into the bytearray
 		// Subtracting base structure offset (12b)
 		// Subtracting 4 bytes going after extension byte array
 		ref.CharacteristicsExtensionsSize = structure.Header.Length - 0x12 - 0x4
@@ -97,7 +114,6 @@ func (s *Svc) parseBiosInformation(structure *smbios.Structure, version *SMBIOSV
 
 	// 2.0+
 	ref := &BIOSInformationRefSpec20{}
-	// Adding header size (type 1b + length 1b + handle 1w), since it is not included into the bytearray
 	// Subtracting base structure offset (12b)
 	ref.CharacteristicsExtensionsSize = structure.Header.Length - 0x12
 	if err := struc.Unpack(bytes.NewReader(structure.Formatted), ref); err != nil {
