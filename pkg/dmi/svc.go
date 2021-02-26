@@ -44,6 +44,21 @@ func (s *Svc) GetData() (*DMI, error) {
 
 	for _, structure := range structures {
 		switch structure.Header.Type {
+		case CBoardInformationHeaderType:
+			boardInfo, err := s.parseBoardInformation(structure, version)
+			if err != nil {
+				s.printer.VErr(errors.Wrap(err, "unable to parse board info"))
+			}
+			if dmi.BoardInformation == nil {
+				dmi.BoardInformation = []BoardInformation{}
+			}
+			dmi.BoardInformation = append(dmi.BoardInformation, *boardInfo)
+		case CBIOSInformationHeaderType:
+			biosInfo, err := s.parseBiosInformation(structure, version)
+			if err != nil {
+				s.printer.VErr(errors.Wrap(err, "unable to parse BIOS info"))
+			}
+			dmi.BIOSInformation = biosInfo
 		case CSystemInformationHeaderType:
 			systemInfo, err := s.parseSystemInformation(structure, version)
 			if err != nil {
@@ -54,6 +69,57 @@ func (s *Svc) GetData() (*DMI, error) {
 	}
 
 	return dmi, nil
+}
+
+func (s *Svc) parseBoardInformation(structure *smbios.Structure, version *SMBIOSVersion) (*BoardInformation, error) {
+	ref := &BoardInformationRefSpec{}
+
+	if err := struc.Unpack(bytes.NewReader(structure.Formatted), ref); err != nil {
+		return nil, errors.Wrap(err, "unable to unpack structure")
+	}
+
+	return BoardInformationFromSpec(ref, structure.Strings), nil
+}
+
+func (s *Svc) parseBiosInformation(structure *smbios.Structure, version *SMBIOSVersion) (*BIOSInformation, error) {
+	// Spec contains info only for 2.0+
+	if version.Lesser(&SMBIOSVersion{2, 0, 0}) {
+		return &BIOSInformation{}, nil
+	}
+
+	// 3.1+
+	if version.GreaterOrEqual(&SMBIOSVersion{3, 1, 0}) {
+		ref := &BIOSInformationRefSpec31{}
+		// Subtracting base structure offset (12b)
+		// Subtracting 4 bytes going after extension byte array
+		// Subtracting 2 bytes going after extension byte array
+		ref.CharacteristicsExtensionsSize = structure.Header.Length - 0x12 - 0x4 - 0x2
+		if err := struc.Unpack(bytes.NewReader(structure.Formatted), ref); err != nil {
+			return nil, errors.Wrap(err, "unable to unpack structure")
+		}
+		return BIOSInformationFromSpec31(ref, structure.Strings), nil
+	}
+
+	// 2.4+
+	if version.GreaterOrEqual(&SMBIOSVersion{2, 4, 0}) {
+		ref := &BIOSInformationRefSpec24{}
+		// Subtracting base structure offset (12b)
+		// Subtracting 4 bytes going after extension byte array
+		ref.CharacteristicsExtensionsSize = structure.Header.Length - 0x12 - 0x4
+		if err := struc.Unpack(bytes.NewReader(structure.Formatted), ref); err != nil {
+			return nil, errors.Wrap(err, "unable to unpack structure")
+		}
+		return BIOSInformationFromSpec24(ref, structure.Strings), nil
+	}
+
+	// 2.0+
+	ref := &BIOSInformationRefSpec20{}
+	// Subtracting base structure offset (12b)
+	ref.CharacteristicsExtensionsSize = structure.Header.Length - 0x12
+	if err := struc.Unpack(bytes.NewReader(structure.Formatted), ref); err != nil {
+		return nil, errors.Wrap(err, "unable to unpack structure")
+	}
+	return BIOSInformationFromSpec20(ref, structure.Strings), nil
 }
 
 func (s *Svc) parseSystemInformation(structure *smbios.Structure, version *SMBIOSVersion) (*SystemInformation, error) {

@@ -11,17 +11,19 @@ import (
 	"github.com/onmetal/inventory/pkg/nic"
 	"github.com/onmetal/inventory/pkg/numa"
 	"github.com/onmetal/inventory/pkg/pci"
+	"github.com/onmetal/inventory/pkg/virt"
 )
 
 type Inventory struct {
-	DMI           *dmi.DMI
-	MemInfo       *mem.Info
-	CPUInfo       []cpu.Info
-	NumaNodes     []numa.Node
-	BlockDevices  []block.Device
-	PCIBusDevices []pci.Bus
-	IPMIDevices   []ipmi.Device
-	NICs          []nic.Device
-	LLDPFrames    []lldp.Frame
-	NDPFrames     []netlink.IPv6Neighbour
+	DMI            *dmi.DMI
+	MemInfo        *mem.Info
+	CPUInfo        []cpu.Info
+	NumaNodes      []numa.Node
+	BlockDevices   []block.Device
+	PCIBusDevices  []pci.Bus
+	IPMIDevices    []ipmi.Device
+	NICs           []nic.Device
+	LLDPFrames     []lldp.Frame
+	NDPFrames      []netlink.IPv6Neighbour
+	Virtualization *virt.Virtualization
 }

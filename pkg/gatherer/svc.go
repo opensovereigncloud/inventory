@@ -20,6 +20,7 @@ import (
 	"github.com/onmetal/inventory/pkg/numa"
 	"github.com/onmetal/inventory/pkg/pci"
 	"github.com/onmetal/inventory/pkg/printer"
+	"github.com/onmetal/inventory/pkg/virt"
 )
 
 const (
@@ -42,6 +43,7 @@ type Svc struct {
 	nicSvc     *nic.Svc
 	ipmiSvc    *ipmi.Svc
 	netlinkSvc *netlink.Svc
+	virtSvc    *virt.Svc
 }
 
 func NewSvc() (*Svc, int) {
@@ -91,6 +93,8 @@ func NewSvc() (*Svc, int) {
 
 	nlSvc := netlink.NewSvc(p, f.Root)
 
+	virtSvc := virt.NewSvc(dmiSvc, cpuInfoSvc, f.Root)
+
 	return &Svc{
 		printer:    p,
 		crdSvc:     crdSvc,
@@ -104,6 +108,7 @@ func NewSvc() (*Svc, int) {
 		nicSvc:     nicSvc,
 		ipmiSvc:    ipmiSvc,
 		netlinkSvc: nlSvc,
+		virtSvc:    virtSvc,
 	}, 0
 }
 
@@ -121,6 +126,7 @@ func (s *Svc) Gather() int {
 		s.setNICs,
 		s.setLLDPFrames,
 		s.setNDPFrames,
+		s.setVirt,
 	}
 
 	for _, setter := range setters {
@@ -238,5 +244,14 @@ func (s *Svc) setNDPFrames(inv *inventory.Inventory) error {
 		return errors.Wrap(err, "unable to get ndp data")
 	}
 	inv.NDPFrames = data
+	return nil
+}
+
+func (s *Svc) setVirt(inv *inventory.Inventory) error {
+	data, err := s.virtSvc.GetData()
+	if err != nil {
+		return errors.Wrap(err, "unable to get virt")
+	}
+	inv.Virtualization = data
 	return nil
 }

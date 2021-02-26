@@ -34,15 +34,15 @@ func NewInfoSvc(printer *printer.Svc, basePath string) *InfoSvc {
 }
 
 func (s *InfoSvc) GetInfo() ([]Info, error) {
-	memInfoData, err := ioutil.ReadFile(s.cpuInfoPath)
+	cpuInfoData, err := ioutil.ReadFile(s.cpuInfoPath)
 	if err != nil {
-		return nil, errors.Wrapf(err, "unable to read meminfo from %s", s.cpuInfoPath)
+		return nil, errors.Wrapf(err, "unable to read cpuinfo from %s", s.cpuInfoPath)
 	}
 
 	cpus := make([]Info, 0)
 	cpu := Info{}
 
-	bufReader := bytes.NewReader(memInfoData)
+	bufReader := bytes.NewReader(cpuInfoData)
 	scanner := bufio.NewScanner(bufReader)
 	for scanner.Scan() {
 		line := scanner.Text()

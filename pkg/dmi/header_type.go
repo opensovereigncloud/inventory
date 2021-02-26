@@ -5,4 +5,5 @@ package dmi
 const (
 	CBIOSInformationHeaderType = iota
 	CSystemInformationHeaderType
+	CBoardInformationHeaderType
 )

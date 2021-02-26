@@ -6,10 +6,11 @@ require (
 	github.com/digitalocean/go-smbios v0.0.0-20180907143718-390a4f403a8e
 	github.com/diskfs/go-diskfs v1.1.1
 	github.com/google/go-cmp v0.5.4 // indirect
+	github.com/jeek120/cpuid v0.0.0-20200914054105-8fa8c861dea6
 	github.com/lunixbochs/struc v0.0.0-20200707160740-784aaebc1d40
 	github.com/mdlayher/ethernet v0.0.0-20190606142754-0394541c37b7 // indirect
 	github.com/mdlayher/lldp v0.0.0-20150915211757-afd9f83164c5
-	github.com/onmetal/k8s-inventory v0.0.0-20210219061635-03b117b76b64
+	github.com/onmetal/k8s-inventory v0.0.0-20210226103223-f5b3c3dfc868
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.7.0 // indirect
 	github.com/spf13/pflag v1.0.5
