@@ -91,6 +91,7 @@ Tool is collecting data about.
 - LLDP from `/run/systemd/netif/lldp`.
 - NDP from kernel routing tables via ioctl.
 - PCI devices from sysfs `/sys/devices` using PCI IDs database.
+- Virtualization devices from `/sys`, `/proc` and DMI.
 
 ## Development
 
