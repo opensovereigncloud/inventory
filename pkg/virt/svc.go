@@ -6,6 +6,8 @@ import (
 	"encoding/binary"
 	"io/ioutil"
 	"os"
+	"path"
+	"strconv"
 	"strings"
 
 	"github.com/jeek120/cpuid"
@@ -35,13 +37,15 @@ const (
 	CTypeVMOther     = "other"
 
 	CProcXenPath                        = "/proc/xen"
-	CSysHypervisorTypePaht              = "/sys/hypervisor/type"
+	CSysHypervisorTypePath              = "/sys/hypervisor/type"
 	CDeviceTreePath                     = "/proc/device-tree"
 	CDeviceTreeHypervisorCompatiblePath = "/proc/device-tree/hypervisor/compatible"
 	CDeviceTreeIBMPartitionNamePath     = "/proc/device-tree/ibm,partition-name"
 	CDeviceTreeHMCManagedPath           = "/proc/device-tree/hmc-managed?"
 	CDeviceTreeQEMUPath                 = "/proc/device-tree/chosen/qemu,graphic-width"
-	CProcSysInfo                        = "/proc/sysinfo"
+	CProcSysInfoPath                    = "/proc/sysinfo"
+	CSysHypervisorFeaturesPath          = "/sys/hypervisor/properties/features"
+	CProcXenCapabilitiesPath            = "/proc/xen/capabilities"
 )
 
 type Type string
@@ -62,10 +66,25 @@ type Svc struct {
 	deviceTreeHMCManagedPath           string
 	deviceTreeQEMUPath                 string
 	procSysInfoPath                    string
+	sysHypervisorFeaturesPath          string
+	procXenCapabilitiesPath            string
 }
 
-func NewSvc() *Svc {
-	return &Svc{}
+func NewSvc(dmiSvc *dmi.Svc, cpuInfoSvc *cpu.InfoSvc, basePath string) *Svc {
+	return &Svc{
+		dmiSvc:                             dmiSvc,
+		cpuInfoSvc:                         cpuInfoSvc,
+		procXenPath:                        path.Join(basePath, CProcXenPath),
+		sysHypervisorTypePath:              path.Join(basePath, CSysHypervisorTypePath),
+		deviceTreePath:                     path.Join(basePath, CDeviceTreePath),
+		deviceTreeHypervisorCompatiblePath: path.Join(basePath, CDeviceTreeHypervisorCompatiblePath),
+		deviceTreeIBMPartitionNamePath:     path.Join(basePath, CDeviceTreeIBMPartitionNamePath),
+		deviceTreeHMCManagedPath:           path.Join(basePath, CDeviceTreeHMCManagedPath),
+		deviceTreeQEMUPath:                 path.Join(basePath, CDeviceTreeQEMUPath),
+		procSysInfoPath:                    path.Join(basePath, CProcSysInfoPath),
+		sysHypervisorFeaturesPath:          path.Join(basePath, CSysHypervisorFeaturesPath),
+		procXenCapabilitiesPath:            path.Join(basePath, CProcXenCapabilitiesPath),
+	}
 }
 
 var CDMIVendorPrefixes = map[string]Type{
@@ -92,12 +111,163 @@ var CCPUIDVMStrings = map[string]Type{
 	"ACRNACRNACRN": CTypeVMACRN,
 }
 
-func (s *Svc) GetData() {
-	theType := s.checkVMWithDMI()
-
-	if theType == CTypeVMXen || theType == CTypeVMOracle {
-
+func (s *Svc) GetData() (*Virtualization, error) {
+	theType, err := s.getType()
+	if err != nil {
+		return nil, errors.Wrapf(err, "unable to complete virt detection")
 	}
+	return &Virtualization{
+		Type: theType,
+	}, nil
+}
+
+func (s *Svc) getType() (Type, error) {
+	// check dmi
+	//   if oracle
+	//     return result
+	//	 if xen
+	//	   check xen dom0
+	//     return result
+	// check cpuInfo
+	//   if xen
+	//     check xen dom0
+	//     return result
+	//   if !none && !other
+	//     return result
+	// check cpuId
+	//   if xen
+	//     check xen dom0
+	//     return result
+	//   if !none && !other
+	//     return result
+	// check dmi
+	//   if !none && !other
+	//     return result
+	// check xen
+	//	 if xen
+	//	   check xen dom0
+	//     return result
+	//   if !none && !other
+	//     return result
+	// check hypervisor
+	//	 if xen
+	//	   check xen dom0
+	//     return result
+	//   if !none && !other
+	//     return result
+	// check devTree
+	//	 if xen
+	//	   check xen dom0
+	//     return result
+	//   if !none && !other
+	//     return result
+	// check zvm
+	//	 if xen
+	//	   check xen dom0
+	//     return result
+	//   return result
+
+	dmiType := s.checkVMWithDMI()
+	if dmiType == CTypeVMOracle {
+		return dmiType, nil
+	}
+	if dmiType == CTypeVMXen {
+		if theType, err := s.checkVMWithXenDom0(); err != nil {
+			return "", errors.Wrapf(err, "unable to check for xen dom0")
+		} else {
+			return theType, nil
+		}
+	}
+
+	passType := s.checkVMWithCPUInfo()
+	if passType == CTypeVMXen {
+		if theType, err := s.checkVMWithXenDom0(); err != nil {
+			return "", errors.Wrapf(err, "unable to check for xen dom0")
+		} else {
+			return theType, nil
+		}
+	}
+	if passType != CTypeNone && passType != CTypeVMOther {
+		return passType, nil
+	}
+
+	passType, err := s.checkVMWithCPUID()
+	if err != nil {
+		return "", errors.Wrapf(err, "unable to check for cpuid")
+	}
+	if passType == CTypeVMXen {
+		if theType, err := s.checkVMWithXenDom0(); err != nil {
+			return "", errors.Wrapf(err, "unable to check for xen dom0")
+		} else {
+			return theType, nil
+		}
+	}
+	if passType != CTypeNone && passType != CTypeVMOther {
+		return passType, nil
+	}
+
+	if dmiType != CTypeNone && dmiType != CTypeVMOther {
+		return dmiType, nil
+	}
+
+	passType = s.checkVMWithXen()
+	if passType == CTypeVMXen {
+		if theType, err := s.checkVMWithXenDom0(); err != nil {
+			return "", errors.Wrapf(err, "unable to check for xen dom0")
+		} else {
+			return theType, nil
+		}
+	}
+	if passType != CTypeNone && passType != CTypeVMOther {
+		return passType, nil
+	}
+
+	passType, err = s.checkVMWithSysHypervisor()
+	if err != nil {
+		return "", errors.Wrapf(err, "unable to check for hypervizor")
+	}
+	if passType == CTypeVMXen {
+		if theType, err := s.checkVMWithXenDom0(); err != nil {
+			return "", errors.Wrapf(err, "unable to check for xen dom0")
+		} else {
+			return theType, nil
+		}
+	}
+	if passType != CTypeNone && passType != CTypeVMOther {
+		return passType, nil
+	}
+
+	passType, err = s.checkVMWithDeviceTree()
+	if err != nil {
+		return "", errors.Wrapf(err, "unable to check for device tree")
+	}
+	if passType == CTypeVMXen {
+		if theType, err := s.checkVMWithXenDom0(); err != nil {
+			return "", errors.Wrapf(err, "unable to check for xen dom0")
+		} else {
+			return theType, nil
+		}
+	}
+	if passType != CTypeNone && passType != CTypeVMOther {
+		return passType, nil
+	}
+
+	passType, err = s.checkVMWithZVM()
+	if err != nil {
+		return "", errors.Wrapf(err, "unable to check for zvm")
+	}
+	if passType == CTypeVMXen {
+		if theType, err := s.checkVMWithXenDom0(); err != nil {
+			return "", errors.Wrapf(err, "unable to check for xen dom0")
+		} else {
+			return theType, nil
+		}
+	}
+	if passType != CTypeNone && passType != CTypeVMOther {
+		return passType, nil
+	}
+
+	return passType, nil
 }
 
 func (s *Svc) checkVMWithDMI() Type {
@@ -174,21 +344,21 @@ func (s *Svc) checkVMWithXen() Type {
 	return CTypeVMXen
 }
 
-func (s *Svc) checkVMWithSysHypervisor() Type {
+func (s *Svc) checkVMWithSysHypervisor() (Type, error) {
 	if _, err := os.Stat(s.sysHypervisorTypePath); os.IsNotExist(err) {
-		return CTypeNone
+		return CTypeNone, nil
 	}
 
 	str, err := file.ToString(s.sysHypervisorTypePath)
 	if err != nil {
-		return errors.Wrapf(err, "unable to read %s into string", s.sysHypervisorTypePath)
+		return "", errors.Wrapf(err, "unable to read %s into string", s.sysHypervisorTypePath)
 	}
 
 	if str == "xen" {
-		return CTypeVMXen
+		return CTypeVMXen, nil
 	}
 
-	return CTypeVMOther
+	return CTypeVMOther, nil
 }
 
 func (s *Svc) checkVMWithDeviceTree() (Type, error) {
@@ -270,4 +440,40 @@ func (s *Svc) checkVMWithZVM() (Type, error) {
 	}
 
 	return CTypeNone, nil
+}
+
+func (s *Svc) checkVMWithXenDom0() (Type, error) {
+	str, err := file.ToString(s.sysHypervisorFeaturesPath)
+	if err != nil {
+		return "", errors.Wrapf(err, "unable to read %s", s.sysHypervisorFeaturesPath)
+	}
+
+	features, err := strconv.ParseUint("0x"+str, 16, 64)
+	if err == nil {
+		t := features & (1 << 11)
+		if t == 0 {
+			return CTypeVMXen, nil
+		} else {
+			return CTypeNone, nil
+		}
+	}
+
+	str, err = file.ToString(s.sysHypervisorFeaturesPath)
+	cause := errors.Unwrap(err)
+	if !os.IsNotExist(cause) {
+		return CTypeVMXen, nil
+	}
+	if err != nil {
+		return "", errors.Wrapf(err, "unable to read %s", s.sysHypervisorFeaturesPath)
+	}
+
+	capabilities := strings.Split(str, ",")
+
+	for _, capability := range capabilities {
+		if capability == "control_d" {
+			return CTypeNone, nil
+		}
+	}
+
+	return CTypeVMXen, nil
 }

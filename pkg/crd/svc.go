@@ -71,6 +71,7 @@ func (s *Svc) Build(inv *inventory.Inventory) (*apiv1alpha1.Inventory, error) {
 		s.setMemory,
 		s.setCPUs,
 		s.setNICs,
+		s.setVirt,
 	}
 
 	for _, setter := range setters {
@@ -380,5 +381,15 @@ func (s *Svc) setNICs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	cr.Spec.NICs = &apiv1alpha1.NICTotalSpec{
 		Count: uint64(len(nics)),
 		NICs:  nics,
+	}
+}
+
+func (s *Svc) setVirt(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+	if inv.Virtualization == nil {
+		return
+	}
+
+	cr.Spec.Virt = &apiv1alpha1.VirtSpec{
+		VMType: string(inv.Virtualization.Type),
 	}
 }
