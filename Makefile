@@ -4,6 +4,8 @@ DOCKER_REGISTRY = "localhost:5000"
 DOCKER_IMAGE_NAME = "inventory"
 DOCKER_IMAGE_TAG = "latest"
 
+GOPRIVATE ?= "github.com/onmetal/*"
+
 .PHONY: all
 all: compile
 
@@ -26,7 +28,7 @@ dl-pciids:
 
 .PHONY: docker-build
 docker-build:
-	docker build . -t $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG)
+	docker build . -t $(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG) --build-arg GOPRIVATE=$(GOPRIVATE) --build-arg GIT_USER=$(GIT_USER) --build-arg GIT_PASSWORD=$(GIT_PASSWORD)
 
 .PHONY: docker-push
 docker-push:

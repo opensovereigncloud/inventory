@@ -10,7 +10,7 @@ require (
 	github.com/lunixbochs/struc v0.0.0-20200707160740-784aaebc1d40
 	github.com/mdlayher/ethernet v0.0.0-20190606142754-0394541c37b7 // indirect
 	github.com/mdlayher/lldp v0.0.0-20150915211757-afd9f83164c5
-	github.com/onmetal/k8s-inventory v0.0.0-20210226103223-f5b3c3dfc868
+	github.com/onmetal/k8s-inventory v0.0.0-20210331141914-50339f456dfa
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.7.0 // indirect
 	github.com/spf13/pflag v1.0.5
