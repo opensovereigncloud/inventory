@@ -1,0 +1,88 @@
+package host
+
+import (
+	"encoding/json"
+	"github.com/onmetal/inventory/pkg/printer"
+	"github.com/pkg/errors"
+	"gopkg.in/yaml.v3"
+	"io/ioutil"
+	"os"
+	"path"
+	"strings"
+)
+
+const (
+	VersionFilePath = "/etc/sonic/sonic_version.yml"
+	Machine         = "Machine"
+	Switch          = "Switch"
+)
+
+type Info struct {
+	Type     string
+	Hostname string
+}
+
+type Distro struct {
+	BuildVersion  string
+	DebianVersion string
+	KernelVersion string
+	AsicType      string
+	CommitId      string
+	BuildDate     string
+	BuildNumber   uint32
+	BuildBy       string
+}
+
+type Svc struct {
+	printer       *printer.Svc
+	sonicInfoPath string
+}
+
+func NewSvc(printer *printer.Svc, basePath string) *Svc {
+	return &Svc{
+		printer:       printer,
+		sonicInfoPath: path.Join(basePath, VersionFilePath),
+	}
+}
+
+func (s *Svc) GetData() (*Info, *Distro, error) {
+	info := Info{}
+	distro := Distro{}
+	name, err := os.Hostname()
+	if err != nil {
+		s.printer.VErr(errors.Errorf("failed to get hostname"))
+	}
+	info.Hostname = name
+
+	rawInfo := make(map[string]interface{})
+	sonicInfo, err := ioutil.ReadFile(s.sonicInfoPath)
+	if err != nil {
+		info.Type = Machine
+	} else {
+		err := yaml.Unmarshal(sonicInfo, &rawInfo)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "failed to collect SONiC version")
+		}
+		err = convertMapStruct(&distro, rawInfo)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "failed to process SONiC version")
+		}
+		info.Type = Switch
+	}
+	return &info, &distro, nil
+}
+
+func convertMapStruct(obj *Distro, m map[string]interface{}) error {
+	for k, v := range m {
+		m[strings.Replace(k, "_", "", 1)] = v
+	}
+	data, err := json.Marshal(m)
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(data, obj)
+	if err != nil {
+		return err
+	}
+	return nil
+}

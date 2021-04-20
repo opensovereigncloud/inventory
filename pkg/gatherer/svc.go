@@ -11,6 +11,7 @@ import (
 	"github.com/onmetal/inventory/pkg/crd"
 	"github.com/onmetal/inventory/pkg/dmi"
 	"github.com/onmetal/inventory/pkg/flags"
+	"github.com/onmetal/inventory/pkg/host"
 	"github.com/onmetal/inventory/pkg/inventory"
 	"github.com/onmetal/inventory/pkg/ipmi"
 	"github.com/onmetal/inventory/pkg/lldp"
@@ -44,6 +45,7 @@ type Svc struct {
 	ipmiSvc    *ipmi.Svc
 	netlinkSvc *netlink.Svc
 	virtSvc    *virt.Svc
+	hostSvc    *host.Svc
 }
 
 func NewSvc() (*Svc, int) {
@@ -95,6 +97,8 @@ func NewSvc() (*Svc, int) {
 
 	virtSvc := virt.NewSvc(dmiSvc, cpuInfoSvc, f.Root)
 
+	hostSvc := host.NewSvc(p, f.Root)
+
 	return &Svc{
 		printer:    p,
 		crdSvc:     crdSvc,
@@ -109,6 +113,7 @@ func NewSvc() (*Svc, int) {
 		ipmiSvc:    ipmiSvc,
 		netlinkSvc: nlSvc,
 		virtSvc:    virtSvc,
+		hostSvc:    hostSvc,
 	}, 0
 }
 
@@ -127,6 +132,7 @@ func (s *Svc) Gather() int {
 		s.setLLDPFrames,
 		s.setNDPFrames,
 		s.setVirt,
+		s.setHost,
 	}
 
 	for _, setter := range setters {
@@ -253,5 +259,15 @@ func (s *Svc) setVirt(inv *inventory.Inventory) error {
 		return errors.Wrap(err, "unable to get virt")
 	}
 	inv.Virtualization = data
+	return nil
+}
+
+func (s *Svc) setHost(inv *inventory.Inventory) error {
+	hostInfo, distro, err := s.hostSvc.GetData()
+	if err != nil {
+		return errors.Wrap(err, "unable to get host info")
+	}
+	inv.Host = hostInfo
+	inv.Distro = distro
 	return nil
 }

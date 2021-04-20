@@ -4,6 +4,7 @@ import (
 	"github.com/onmetal/inventory/pkg/block"
 	"github.com/onmetal/inventory/pkg/cpu"
 	"github.com/onmetal/inventory/pkg/dmi"
+	"github.com/onmetal/inventory/pkg/host"
 	"github.com/onmetal/inventory/pkg/ipmi"
 	"github.com/onmetal/inventory/pkg/lldp"
 	"github.com/onmetal/inventory/pkg/mem"
@@ -26,4 +27,6 @@ type Inventory struct {
 	LLDPFrames     []lldp.Frame
 	NDPFrames      []netlink.IPv6Neighbour
 	Virtualization *virt.Virtualization
+	Host           *host.Info
+	Distro         *host.Distro
 }

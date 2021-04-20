@@ -4,6 +4,7 @@ import (
 	"context"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/pkg/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -72,6 +73,7 @@ func (s *Svc) Build(inv *inventory.Inventory) (*apiv1alpha1.Inventory, error) {
 		s.setCPUs,
 		s.setNICs,
 		s.setVirt,
+		s.setHost,
 	}
 
 	for _, setter := range setters {
@@ -345,7 +347,8 @@ func (s *Svc) setNICs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	nics := make([]apiv1alpha1.NICSpec, 0)
 	for _, nic := range inv.NICs {
 		// filter non-physical interfaces
-		if nic.PCIAddress == "" {
+		// however Ethernet## ports on SONiC switches are virtual devices so we need include device name to filter
+		if nic.PCIAddress == "" && !strings.Contains(nic.Name, "Ethernet") {
 			continue
 		}
 
@@ -391,5 +394,22 @@ func (s *Svc) setVirt(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 
 	cr.Spec.Virt = &apiv1alpha1.VirtSpec{
 		VMType: string(inv.Virtualization.Type),
+	}
+}
+
+func (s *Svc) setHost(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+	cr.Spec.Host = &apiv1alpha1.HostSpec{
+		Type:     inv.Host.Type,
+		Hostname: inv.Host.Hostname,
+	}
+	cr.Spec.Distro = &apiv1alpha1.DistroSpec{
+		BuildVersion:  inv.Distro.BuildVersion,
+		DebianVersion: inv.Distro.DebianVersion,
+		KernelVersion: inv.Distro.KernelVersion,
+		AsicType:      inv.Distro.AsicType,
+		CommitId:      inv.Distro.CommitId,
+		BuildDate:     inv.Distro.BuildDate,
+		BuildNumber:   inv.Distro.BuildNumber,
+		BuildBy:       inv.Distro.BuildBy,
 	}
 }
