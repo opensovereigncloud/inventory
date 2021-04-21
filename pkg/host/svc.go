@@ -12,9 +12,9 @@ import (
 )
 
 const (
-	VersionFilePath = "/etc/sonic/sonic_version.yml"
-	Machine         = "Machine"
-	Switch          = "Switch"
+	CVersionFilePath = "/etc/sonic/sonic_version.yml"
+	CMachineType     = "Machine"
+	CSwitchType      = "Switch"
 )
 
 type Info struct {
@@ -41,7 +41,7 @@ type Svc struct {
 func NewSvc(printer *printer.Svc, basePath string) *Svc {
 	return &Svc{
 		printer:       printer,
-		sonicInfoPath: path.Join(basePath, VersionFilePath),
+		sonicInfoPath: path.Join(basePath, CVersionFilePath),
 	}
 }
 
@@ -57,7 +57,7 @@ func (s *Svc) GetData() (*Info, *Distro, error) {
 	rawInfo := make(map[string]interface{})
 	sonicInfo, err := ioutil.ReadFile(s.sonicInfoPath)
 	if err != nil {
-		info.Type = Machine
+		info.Type = CMachineType
 	} else {
 		err := yaml.Unmarshal(sonicInfo, &rawInfo)
 		if err != nil {
@@ -67,7 +67,7 @@ func (s *Svc) GetData() (*Info, *Distro, error) {
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "failed to process SONiC version")
 		}
-		info.Type = Switch
+		info.Type = CSwitchType
 	}
 	return &info, &distro, nil
 }
