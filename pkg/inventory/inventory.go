@@ -3,6 +3,7 @@ package inventory
 import (
 	"github.com/onmetal/inventory/pkg/block"
 	"github.com/onmetal/inventory/pkg/cpu"
+	"github.com/onmetal/inventory/pkg/distro"
 	"github.com/onmetal/inventory/pkg/dmi"
 	"github.com/onmetal/inventory/pkg/host"
 	"github.com/onmetal/inventory/pkg/ipmi"
@@ -28,5 +29,5 @@ type Inventory struct {
 	NDPFrames      []netlink.IPv6Neighbour
 	Virtualization *virt.Virtualization
 	Host           *host.Info
-	Distro         *host.Distro
+	Distro         *distro.Distro
 }

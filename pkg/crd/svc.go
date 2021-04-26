@@ -2,6 +2,7 @@ package crd
 
 import (
 	"context"
+	"github.com/onmetal/inventory/pkg/utils"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -74,6 +75,7 @@ func (s *Svc) Build(inv *inventory.Inventory) (*apiv1alpha1.Inventory, error) {
 		s.setNICs,
 		s.setVirt,
 		s.setHost,
+		s.setDistro,
 	}
 
 	for _, setter := range setters {
@@ -345,11 +347,17 @@ func (s *Svc) setNICs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	}
 
 	nics := make([]apiv1alpha1.NICSpec, 0)
+	hostType, _ := utils.GetHostType()
 	for _, nic := range inv.NICs {
-		// filter non-physical interfaces
-		// however Ethernet## ports on SONiC switches are virtual devices so we need include device name to filter
-		if nic.PCIAddress == "" && !strings.HasPrefix(nic.Name, "Ethernet") {
-			continue
+		// filter non-physical interfaces according to type of inventorying host
+		if hostType == utils.CSwitchType {
+			if nic.PCIAddress == "" && !strings.HasPrefix(nic.Name, "Ethernet") {
+				continue
+			}
+		} else {
+			if nic.PCIAddress == "" {
+				continue
+			}
 		}
 
 		lldps := lldpMap[int(nic.InterfaceIndex)]
@@ -399,9 +407,12 @@ func (s *Svc) setVirt(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 
 func (s *Svc) setHost(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	cr.Spec.Host = &apiv1alpha1.HostSpec{
-		Type:     inv.Host.Type,
-		Hostname: inv.Host.Hostname,
+		Type: inv.Host.Type,
+		Name: inv.Host.Name,
 	}
+}
+
+func (s *Svc) setDistro(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	cr.Spec.Distro = &apiv1alpha1.DistroSpec{
 		BuildVersion:  inv.Distro.BuildVersion,
 		DebianVersion: inv.Distro.DebianVersion,
