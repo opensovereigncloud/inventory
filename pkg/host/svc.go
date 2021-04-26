@@ -55,11 +55,16 @@ func (s *Svc) GetData() (*Info, *Distro, error) {
 	info.Hostname = name
 
 	rawInfo := make(map[string]interface{})
-	sonicInfo, err := ioutil.ReadFile(s.sonicInfoPath)
+	sonicConfigFileExists, err := sonicConfigExists(s.sonicInfoPath)
 	if err != nil {
-		info.Type = CMachineType
-	} else {
-		err := yaml.Unmarshal(sonicInfo, &rawInfo)
+		return nil, nil, errors.Wrap(err, "failed to determine host type")
+	}
+	if sonicConfigFileExists {
+		sonicInfo, err := ioutil.ReadFile(s.sonicInfoPath)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "failed to read SONiC version file")
+		}
+		err = yaml.Unmarshal(sonicInfo, &rawInfo)
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "failed to collect SONiC version")
 		}
@@ -68,6 +73,9 @@ func (s *Svc) GetData() (*Info, *Distro, error) {
 			return nil, nil, errors.Wrap(err, "failed to process SONiC version")
 		}
 		info.Type = CSwitchType
+	} else {
+		info.Type = CMachineType
+		//todo: collect distro info from regular machine
 	}
 	return &info, &distro, nil
 }
@@ -85,4 +93,15 @@ func convertMapStruct(obj *Distro, m map[string]interface{}) error {
 		return err
 	}
 	return nil
+}
+
+func sonicConfigExists(path string) (bool, error) {
+	if _, err := os.Stat(path); err != nil {
+		if !os.IsNotExist(err) {
+			return false, err
+		} else {
+			return false, nil
+		}
+	}
+	return true, nil
 }

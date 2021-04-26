@@ -2,8 +2,6 @@ package crd
 
 import (
 	"context"
-	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -12,6 +10,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/clientcmd"
+	"sort"
+	"strconv"
 
 	apiv1alpha1 "github.com/onmetal/k8s-inventory/api/v1alpha1"
 	clientv1alpha1 "github.com/onmetal/k8s-inventory/clientset/v1alpha1"
@@ -348,7 +348,7 @@ func (s *Svc) setNICs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	for _, nic := range inv.NICs {
 		// filter non-physical interfaces
 		// however Ethernet## ports on SONiC switches are virtual devices so we need include device name to filter
-		if nic.PCIAddress == "" && !strings.Contains(nic.Name, "Ethernet") {
+		if nic.PCIAddress == "" && !strings.HasPrefix(nic.Name, "Ethernet") {
 			continue
 		}
 
