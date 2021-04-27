@@ -2,9 +2,11 @@ package crd
 
 import (
 	"context"
+	"github.com/onmetal/inventory/pkg/inventory"
+	"github.com/onmetal/inventory/pkg/netlink"
 	"github.com/onmetal/inventory/pkg/utils"
-	"strings"
-
+	apiv1alpha1 "github.com/onmetal/k8s-inventory/api/v1alpha1"
+	clientv1alpha1 "github.com/onmetal/k8s-inventory/clientset/v1alpha1"
 	"github.com/pkg/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -13,12 +15,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"sort"
 	"strconv"
-
-	apiv1alpha1 "github.com/onmetal/k8s-inventory/api/v1alpha1"
-	clientv1alpha1 "github.com/onmetal/k8s-inventory/clientset/v1alpha1"
-
-	"github.com/onmetal/inventory/pkg/inventory"
-	"github.com/onmetal/inventory/pkg/netlink"
+	"strings"
 )
 
 type Svc struct {
@@ -406,6 +403,9 @@ func (s *Svc) setVirt(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 }
 
 func (s *Svc) setHost(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+	if inv.Host == nil {
+		return
+	}
 	cr.Spec.Host = &apiv1alpha1.HostSpec{
 		Type: inv.Host.Type,
 		Name: inv.Host.Name,
@@ -413,6 +413,9 @@ func (s *Svc) setHost(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 }
 
 func (s *Svc) setDistro(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+	if inv.Distro == nil {
+		return
+	}
 	cr.Spec.Distro = &apiv1alpha1.DistroSpec{
 		BuildVersion:  inv.Distro.BuildVersion,
 		DebianVersion: inv.Distro.DebianVersion,

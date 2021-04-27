@@ -26,7 +26,7 @@ func (s *Svc) GetData() (*Info, error) {
 	info := Info{}
 	name, err := os.Hostname()
 	if err != nil {
-		s.printer.VErr(errors.Errorf("failed to get hostname"))
+		return nil, errors.Wrap(err, "failed to get hostname")
 	}
 	info.Name = name
 	hostType, err := utils.GetHostType()
