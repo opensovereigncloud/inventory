@@ -4,7 +4,10 @@ import (
 	"context"
 	"sort"
 	"strconv"
+	"strings"
 
+	apiv1alpha1 "github.com/onmetal/k8s-inventory/api/v1alpha1"
+	clientv1alpha1 "github.com/onmetal/k8s-inventory/clientset/v1alpha1"
 	"github.com/pkg/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -12,11 +15,9 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/clientcmd"
 
-	apiv1alpha1 "github.com/onmetal/k8s-inventory/api/v1alpha1"
-	clientv1alpha1 "github.com/onmetal/k8s-inventory/clientset/v1alpha1"
-
 	"github.com/onmetal/inventory/pkg/inventory"
 	"github.com/onmetal/inventory/pkg/netlink"
+	"github.com/onmetal/inventory/pkg/utils"
 )
 
 type Svc struct {
@@ -72,6 +73,8 @@ func (s *Svc) Build(inv *inventory.Inventory) (*apiv1alpha1.Inventory, error) {
 		s.setCPUs,
 		s.setNICs,
 		s.setVirt,
+		s.setHost,
+		s.setDistro,
 	}
 
 	for _, setter := range setters {
@@ -343,10 +346,17 @@ func (s *Svc) setNICs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	}
 
 	nics := make([]apiv1alpha1.NICSpec, 0)
+	hostType, _ := utils.GetHostType()
 	for _, nic := range inv.NICs {
-		// filter non-physical interfaces
-		if nic.PCIAddress == "" {
-			continue
+		// filter non-physical interfaces according to type of inventorying host
+		if hostType == utils.CSwitchType {
+			if nic.PCIAddress == "" && !strings.HasPrefix(nic.Name, "Ethernet") {
+				continue
+			}
+		} else {
+			if nic.PCIAddress == "" {
+				continue
+			}
 		}
 
 		lldps := lldpMap[int(nic.InterfaceIndex)]
@@ -391,5 +401,31 @@ func (s *Svc) setVirt(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 
 	cr.Spec.Virt = &apiv1alpha1.VirtSpec{
 		VMType: string(inv.Virtualization.Type),
+	}
+}
+
+func (s *Svc) setHost(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+	if inv.Host == nil {
+		return
+	}
+	cr.Spec.Host = &apiv1alpha1.HostSpec{
+		Type: inv.Host.Type,
+		Name: inv.Host.Name,
+	}
+}
+
+func (s *Svc) setDistro(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+	if inv.Distro == nil {
+		return
+	}
+	cr.Spec.Distro = &apiv1alpha1.DistroSpec{
+		BuildVersion:  inv.Distro.BuildVersion,
+		DebianVersion: inv.Distro.DebianVersion,
+		KernelVersion: inv.Distro.KernelVersion,
+		AsicType:      inv.Distro.AsicType,
+		CommitId:      inv.Distro.CommitId,
+		BuildDate:     inv.Distro.BuildDate,
+		BuildNumber:   inv.Distro.BuildNumber,
+		BuildBy:       inv.Distro.BuildBy,
 	}
 }
