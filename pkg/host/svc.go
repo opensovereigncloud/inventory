@@ -1,10 +1,12 @@
 package host
 
 import (
+	"os"
+
+	"github.com/pkg/errors"
+
 	"github.com/onmetal/inventory/pkg/printer"
 	"github.com/onmetal/inventory/pkg/utils"
-	"github.com/pkg/errors"
-	"os"
 )
 
 type Info struct {

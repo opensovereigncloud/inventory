@@ -2,12 +2,14 @@ package distro
 
 import (
 	"encoding/json"
-	"github.com/onmetal/inventory/pkg/printer"
-	"github.com/onmetal/inventory/pkg/utils"
-	"github.com/pkg/errors"
-	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"strings"
+
+	"github.com/pkg/errors"
+	"gopkg.in/yaml.v3"
+
+	"github.com/onmetal/inventory/pkg/printer"
+	"github.com/onmetal/inventory/pkg/utils"
 )
 
 type Distro struct {

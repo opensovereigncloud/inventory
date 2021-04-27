@@ -2,9 +2,10 @@ package crd
 
 import (
 	"context"
-	"github.com/onmetal/inventory/pkg/inventory"
-	"github.com/onmetal/inventory/pkg/netlink"
-	"github.com/onmetal/inventory/pkg/utils"
+	"sort"
+	"strconv"
+	"strings"
+
 	apiv1alpha1 "github.com/onmetal/k8s-inventory/api/v1alpha1"
 	clientv1alpha1 "github.com/onmetal/k8s-inventory/clientset/v1alpha1"
 	"github.com/pkg/errors"
@@ -13,9 +14,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/clientcmd"
-	"sort"
-	"strconv"
-	"strings"
+
+	"github.com/onmetal/inventory/pkg/inventory"
+	"github.com/onmetal/inventory/pkg/netlink"
+	"github.com/onmetal/inventory/pkg/utils"
 )
 
 type Svc struct {
