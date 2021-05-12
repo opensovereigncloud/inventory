@@ -3,11 +3,13 @@ package distro
 import (
 	"encoding/json"
 	"io/ioutil"
+	"path"
 	"strings"
 
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
+	"github.com/onmetal/inventory/pkg/host"
 	"github.com/onmetal/inventory/pkg/printer"
 	"github.com/onmetal/inventory/pkg/utils"
 )
@@ -24,24 +26,29 @@ type Distro struct {
 }
 
 type Svc struct {
-	printer *printer.Svc
+	printer           *printer.Svc
+	hostSvc           *host.Svc
+	switchVersionPath string
 }
 
-func NewSvc(printer *printer.Svc) *Svc {
+func NewSvc(printer *printer.Svc, hostSvc *host.Svc, basePath string) *Svc {
 	return &Svc{
-		printer: printer,
+		printer:           printer,
+		hostSvc:           hostSvc,
+		switchVersionPath: path.Join(basePath, utils.CVersionFilePath),
 	}
 }
 
 func (s *Svc) GetData() (*Distro, error) {
 	distro := Distro{}
 	rawInfo := make(map[string]interface{})
-	hostType, err := utils.GetHostType()
+	hostInfo, err := s.hostSvc.GetData()
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to determine host type")
+		s.printer.VErr(errors.Wrap(err, "failed to collect host info"))
 	}
-	if hostType == utils.CSwitchType {
-		sonicInfo, err := ioutil.ReadFile(utils.CVersionFilePath)
+	switch hostInfo.Type {
+	case utils.CSwitchType:
+		sonicInfo, err := ioutil.ReadFile(s.switchVersionPath)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to read SONiC version file")
 		}
@@ -53,6 +60,7 @@ func (s *Svc) GetData() (*Distro, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to process SONiC version")
 		}
+		// todo: case utils.CMachineType:
 	}
 	return &distro, nil
 }

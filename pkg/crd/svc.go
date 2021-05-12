@@ -117,10 +117,20 @@ func (s *Svc) setSystem(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 		return
 	}
 
-	cr.Name = dmi.SystemInformation.UUID
+	if inv.Host == nil {
+		return
+	}
+
+	// SONiC switches has dumb UUIDs like 03000200-0400-0500-0006-000700080009, maybe
+	// the same on any switch, so it was decided to use md5 hash of serial number as UUID
+	hostUUID := dmi.SystemInformation.UUID
+	if inv.Host.Type == utils.CSwitchType {
+		hostUUID = utils.GetUUID(utils.CSonicNamespace, dmi.SystemInformation.SerialNumber)
+	}
+	cr.Name = hostUUID
 
 	cr.Spec.System = &apiv1alpha1.SystemSpec{
-		ID:           dmi.SystemInformation.UUID,
+		ID:           hostUUID,
 		Manufacturer: dmi.SystemInformation.Manufacturer,
 		ProductSKU:   dmi.SystemInformation.SKUNumber,
 		SerialNumber: dmi.SystemInformation.SerialNumber,
@@ -307,6 +317,10 @@ func (s *Svc) setNICs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 		return
 	}
 
+	if inv.Host == nil {
+		return
+	}
+
 	lldpMap := make(map[int][]apiv1alpha1.LLDPSpec)
 	for _, lldp := range inv.LLDPFrames {
 		id, _ := strconv.Atoi(lldp.InterfaceID)
@@ -346,10 +360,9 @@ func (s *Svc) setNICs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	}
 
 	nics := make([]apiv1alpha1.NICSpec, 0)
-	hostType, _ := utils.GetHostType()
 	for _, nic := range inv.NICs {
 		// filter non-physical interfaces according to type of inventorying host
-		if hostType == utils.CSwitchType {
+		if inv.Host.Type == utils.CSwitchType {
 			if nic.PCIAddress == "" && !strings.HasPrefix(nic.Name, "Ethernet") {
 				continue
 			}

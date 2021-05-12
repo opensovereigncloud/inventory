@@ -99,8 +99,8 @@ func NewSvc() (*Svc, int) {
 
 	virtSvc := virt.NewSvc(dmiSvc, cpuInfoSvc, f.Root)
 
-	hostSvc := host.NewSvc(p)
-	distroSvc := distro.NewSvc(p)
+	hostSvc := host.NewSvc(p, f.Root)
+	distroSvc := distro.NewSvc(p, hostSvc, f.Root)
 
 	return &Svc{
 		printer:    p,
@@ -277,6 +277,11 @@ func (s *Svc) setHost(inv *inventory.Inventory) error {
 }
 
 func (s *Svc) setDistro(inv *inventory.Inventory) error {
+	if inv.Host == nil {
+		cause := errors.New("no host data")
+		return errors.Wrap(cause, "unable to get distro info")
+	}
+
 	distroInfo, err := s.distroSvc.GetData()
 	if err != nil {
 		return errors.Wrap(err, "unable to get distro info")
