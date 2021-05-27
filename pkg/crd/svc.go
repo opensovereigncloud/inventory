@@ -429,7 +429,7 @@ func (s *Svc) setNICs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 
 		// Due to k8s validation which allows labels to consist of alphanumeric characters, '-', '_' or '.' need to replace
 		// colons in nic's MAC address
-		labels[CMACAddressLabelPrefix+strings.ToLower(nic.Name)] = strings.ReplaceAll(nic.Address, ":", "-")
+		labels[CMACAddressLabelPrefix+strings.ReplaceAll(nic.Address, ":", "")] = ""
 
 		nics = append(nics, ns)
 	}
