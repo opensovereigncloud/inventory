@@ -1,4 +1,4 @@
-package lldp
+package frame
 
 import (
 	"encoding/binary"

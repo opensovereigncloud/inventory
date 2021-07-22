@@ -7,7 +7,9 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/onmetal/inventory/pkg/host"
+	"github.com/onmetal/inventory/pkg/lldp/frame"
 	"github.com/onmetal/inventory/pkg/printer"
+	"github.com/onmetal/inventory/pkg/redis"
 	"github.com/onmetal/inventory/pkg/utils"
 )
 
@@ -17,13 +19,13 @@ const (
 
 type Svc struct {
 	printer      *printer.Svc
-	frameInfoSvc *FrameSvc
+	frameInfoSvc *frame.Svc
 	hostSvc      *host.Svc
-	redisSvc     *RedisSvc
+	redisSvc     *redis.Svc
 	lldpPath     string
 }
 
-func NewSvc(printer *printer.Svc, frameInfoSvc *FrameSvc, hostSvc *host.Svc, redisSvc *RedisSvc, basePath string) *Svc {
+func NewSvc(printer *printer.Svc, frameInfoSvc *frame.Svc, hostSvc *host.Svc, redisSvc *redis.Svc, basePath string) *Svc {
 	return &Svc{
 		printer:      printer,
 		frameInfoSvc: frameInfoSvc,
@@ -33,8 +35,8 @@ func NewSvc(printer *printer.Svc, frameInfoSvc *FrameSvc, hostSvc *host.Svc, red
 	}
 }
 
-func (s *Svc) GetData() ([]Frame, error) {
-	frameInfos := make([]Frame, 0)
+func (s *Svc) GetData() ([]frame.Frame, error) {
+	frameInfos := make([]frame.Frame, 0)
 
 	hostInfo, err := s.hostSvc.GetData()
 	if err != nil {
