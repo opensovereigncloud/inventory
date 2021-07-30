@@ -17,6 +17,7 @@ import (
 	"github.com/onmetal/inventory/pkg/ipmi"
 	"github.com/onmetal/inventory/pkg/lldp"
 	"github.com/onmetal/inventory/pkg/mem"
+	"github.com/onmetal/inventory/pkg/mlc"
 	"github.com/onmetal/inventory/pkg/netlink"
 	"github.com/onmetal/inventory/pkg/nic"
 	"github.com/onmetal/inventory/pkg/numa"
@@ -41,6 +42,7 @@ type Svc struct {
 	pciSvc     *pci.Svc
 	cpuInfoSvc *cpu.InfoSvc
 	memInfoSvc *mem.InfoSvc
+	mlcPerfSvc *mlcPerf.PerfSvc
 	lldpSvc    *lldp.Svc
 	nicSvc     *nic.Svc
 	ipmiSvc    *ipmi.Svc
@@ -72,6 +74,7 @@ func NewSvc() (*Svc, int) {
 
 	cpuInfoSvc := cpu.NewInfoSvc(p, f.Root)
 	memInfoSvc := mem.NewInfoSvc(p, f.Root)
+	mlcPerfSvc := mlcPerf.NewPerfSvc(p, f.Root)
 
 	numaStatSvc := numa.NewStatSvc(p)
 	numaNodeSvc := numa.NewNodeSvc(memInfoSvc, numaStatSvc)
@@ -113,6 +116,7 @@ func NewSvc() (*Svc, int) {
 		pciSvc:     pciSvc,
 		cpuInfoSvc: cpuInfoSvc,
 		memInfoSvc: memInfoSvc,
+		mlcPerfSvc: mlcPerfSvc,
 		lldpSvc:    lldpSvc,
 		nicSvc:     nicSvc,
 		ipmiSvc:    ipmiSvc,
@@ -130,6 +134,7 @@ func (s *Svc) Gather() int {
 		s.setDMI,
 		s.setCPUInfo,
 		s.setMemInfo,
+		s.setMlcPerf,
 		s.setNumaNodes,
 		s.setBlockDevices,
 		s.setPCIBusDevices,
@@ -194,6 +199,15 @@ func (s *Svc) setMemInfo(inv *inventory.Inventory) error {
 		return errors.Wrap(err, "unable to get proc data")
 	}
 	inv.MemInfo = data
+	return nil
+}
+
+func (s *Svc) setMlcPerf(inv *inventory.Inventory) error {
+	data, err := s.mlcPerfSvc.GetInfo()
+	if err != nil {
+		return errors.Wrap(err, "unable to get mlc data")
+	}
+	inv.MlcPerf = data
 	return nil
 }
 
