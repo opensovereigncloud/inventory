@@ -273,6 +273,10 @@ func (s *Svc) getType() (Type, error) {
 func (s *Svc) checkVMWithDMI() Type {
 	dmiData, _ := s.dmiSvc.GetData()
 
+	if dmiData == nil {
+		return CTypeNone
+	}
+
 	vendorLocators := []string{
 		dmiData.SystemInformation.ProductName,
 		dmiData.SystemInformation.Manufacturer,

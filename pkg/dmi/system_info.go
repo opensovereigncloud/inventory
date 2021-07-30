@@ -60,14 +60,24 @@ type SystemInformation struct {
 	Family       string
 }
 
+func emptyStringOrValue(index byte, strings []string) string {
+	fmt.Printf("CheckBadIndex: %d\n", index)
+	if index == byte(0) || int(index) > len(strings) {
+		str := ""
+		return str
+	} else {
+		return strings[index-1]
+	}
+}
+
 func SystemInformationFromSpec20(ref *SystemInformationRefSpec20, strings []string) *SystemInformation {
 	// Reducing all values by one since structure contains element number
 	// and we need an element index for the array
 	info := &SystemInformation{
-		Manufacturer: strings[ref.Manufacturer-1],
-		ProductName:  strings[ref.ProductName-1],
-		Version:      strings[ref.Version-1],
-		SerialNumber: strings[ref.SerialNumber-1],
+		Manufacturer: emptyStringOrValue(ref.Manufacturer, strings),
+		ProductName:  emptyStringOrValue(ref.ProductName, strings),
+		Version:      emptyStringOrValue(ref.Version, strings),
+		SerialNumber: emptyStringOrValue(ref.SerialNumber, strings),
 	}
 
 	return info

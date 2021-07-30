@@ -57,7 +57,7 @@ func NewSvc() (*Svc, int) {
 
 	crdSvc, err := crd.NewSvc(f.Kubeconfig, f.KubeNamespace)
 	if err != nil {
-		p.Err(errors.Wrapf(err, "unable to create k8s resorce svc"))
+		p.Err(errors.Wrapf(err, "unable to create k8s resource svc"))
 		return nil, CErrRetCode
 	}
 

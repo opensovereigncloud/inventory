@@ -48,6 +48,7 @@ func (s *Svc) GetData() (*DMI, error) {
 			boardInfo, err := s.parseBoardInformation(structure, version)
 			if err != nil {
 				s.printer.VErr(errors.Wrap(err, "unable to parse board info"))
+				continue
 			}
 			if dmi.BoardInformation == nil {
 				dmi.BoardInformation = []BoardInformation{}
