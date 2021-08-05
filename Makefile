@@ -1,4 +1,5 @@
-BIN_NAME = "inventory"
+BIN_NAME_INVENTORY = "inventory"
+BIN_NAME_BENCHMARK = "benchmark"
 
 DOCKER_REGISTRY = "localhost:5000"
 DOCKER_IMAGE_NAME = "inventory"
@@ -11,7 +12,8 @@ all: compile
 
 .PHONY: compile
 compile: fmt vet
-	go build -o dist/$(BIN_NAME) cmd/inventory/main.go
+	go build -o dist/$(BIN_NAME_INVENTORY) cmd/inventory/main.go
+	go build -o dist/$(BIN_NAME_BENCHMARK) cmd/benchmark/main.go
 	cp -rf res/ dist/
 
 .PHONY: fmt
