@@ -6,7 +6,7 @@ on:
       - v*
 
 env:
-  IMAGE_NAME: timtimmer/inventory-tool
+  IMAGE_NAME: core.harbor.onmetal.de/onmetal/inventory-tool
 
 jobs:
   push:
