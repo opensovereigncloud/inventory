@@ -23,10 +23,13 @@ func NewSvc(printer *printer.Svc, basePath string) *Svc {
 func (s *Svc) GetIPv6NeighbourData() ([]IPv6Neighbour, error) {
 	chr, err := chroot.New(s.rootPath)
 	defer func() {
-		if chr != nil {
-			if err := chr.Close(); err != nil {
-				s.printer.VErr(errors.Wrapf(err, "unable to exit chroot"))
-			}
+		// Not sure if it is best to test for err != nil or chr == nil
+		if chr == nil {
+			s.printer.VErr(errors.Wrapf(err, "unable to create chroot"))
+			return
+		}
+		if err := chr.Close(); err != nil {
+			s.printer.VErr(errors.Wrapf(err, "unable to exit chroot"))
 		}
 	}()
 

@@ -272,6 +272,9 @@ func (s *Svc) getType() (Type, error) {
 
 func (s *Svc) checkVMWithDMI() Type {
 	dmiData, _ := s.dmiSvc.GetData()
+	if dmiData == nil {
+		return CTypeNone
+	}
 
 	if dmiData == nil {
 		return CTypeNone

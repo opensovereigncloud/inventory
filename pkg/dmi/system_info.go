@@ -61,7 +61,6 @@ type SystemInformation struct {
 }
 
 func emptyStringOrValue(index byte, strings []string) string {
-	fmt.Printf("CheckBadIndex: %d\n", index)
 	if index == byte(0) || int(index) > len(strings) {
 		str := ""
 		return str

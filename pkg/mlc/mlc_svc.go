@@ -3,7 +3,6 @@ package mlcPerf
 import (
 	"bufio"
 	"bytes"
-	//"fmt"
 	"os/exec"
 	"path"
 	"regexp"
@@ -15,13 +14,13 @@ import (
 )
 
 const (
-	CMlcPath = "/home/ogbrugge/mlc"
+	CMlcPath = "/usr/sbin/mlc"
 
 	// meminfo measures in kibibytes
 	CMlcValueMultiplier = 1024
 
 	/*
-	   icx207:~/inventory/pkg/mlc # /mnt/hana/thomas/MLC/Linux/mlc --bandwidth_matrix
+           Example output:
 	   Intel(R) Memory Latency Checker - v3.9
 	   Command line parameters: --bandwidth_matrix
 
@@ -36,7 +35,6 @@ const (
 	          1        39917.1 43281.2
 	*/
 	/*
-	   icx207:~/inventory/pkg/mlc # /mnt/hana/thomas/MLC/Linux/mlc --latency_matrix
 	   Intel(R) Memory Latency Checker - v3.9
 	   Command line parameters: --latency_matrix
 
@@ -46,7 +44,6 @@ const (
 	   Numa node            0       1
 	          0          64.2   120.3
 	          1         120.3    64.2
-	   icx207:~/inventory/pkg/mlc #
 	*/
 	// Capture the digits for the numa nodes, not the whitespaces in front of it
 	CMlcNumaNodePattern    = "^Numa node(?:\\s+(\\d+))+\\s*$"
@@ -101,10 +98,8 @@ func (s *PerfSvc) GetInfoFromMlc(mlcPath string) (*Perf, error) {
 
 	for scannerLatency.Scan() {
 		line := scannerLatency.Text()
-		//fmt.Printf("prelat line: \"%s\"\n", line)
 
 		groups := CMlcNumaNodeRegexp.FindStringSubmatch(line)
-		//fmt.Printf("prelat groups: %d\n", len(groups))
 
 		// [0] self; [1..X] NUMA node numbers;
 		if len(groups) == 0 {
@@ -115,27 +110,17 @@ func (s *PerfSvc) GetInfoFromMlc(mlcPath string) (*Perf, error) {
 		break
 	}
 
-	//fmt.Printf("lat nodes: %d\n", nodes)
-
 	if nodes == 0 {
 		return nil, errors.Wrapf(err, "Cannot determine Numa nodes in mlc BW output")
 	}
 	for scannerLatency.Scan() {
 		line := scannerLatency.Text()
-		//fmt.Printf("lat line: \"%s\"\n", line)
 		groups := CMlcLatencyLineRegexp.FindStringSubmatch(line)
 
 		if len(groups) == 0 {
-			//fmt.Printf("lat groups is 0\n")
 			continue
 		}
 
-		//fmt.Printf("lat groups is %d\n", len(groups))
-
-		/*
-		for i := 0; i < len(groups); i++ {
-			fmt.Printf("lat Groups[%d] : \"%s\"\n", i, groups[i])
-		}*/
 		// groups[0] is the entire capture, groups[1] the local, groups[2+] if present remote
 		// more remotes should be captured in case of not fully meshed interconnects but requires numa distances to determine
 		if len(groups) > 1 {
@@ -171,13 +156,11 @@ func (s *PerfSvc) GetInfoFromMlc(mlcPath string) (*Perf, error) {
 
 	for scannerBW.Scan() {
 		line := scannerBW.Text()
-		//fmt.Printf("pre bw line: \"%s\"\n", line)
 
 		groups := CMlcNumaNodeRegexp.FindStringSubmatch(line)
 
 		// [0] self; [1..X] NUMA node numbers;
 		if len(groups) == 0 {
-			// fmt.Printf("pre bw groups is 0\n")
 			continue
 		}
 
@@ -185,26 +168,17 @@ func (s *PerfSvc) GetInfoFromMlc(mlcPath string) (*Perf, error) {
 		break
 	}
 
-	// fmt.Printf("pre bw nodes: %d\n", nodes)
-
 	if nodes == 0 {
 		return nil, errors.Wrapf(err, "Cannot determine Numa nodes in mlc BW output")
 	}
 	for scannerBW.Scan() {
 		line := scannerBW.Text()
-		//fmt.Printf("bw line: \"%s\"\n", line)
 		groups := CMlcBWLineRegexp.FindStringSubmatch(line)
 
 		if len(groups) == 0 {
-			//fmt.Printf("bw groups is 0\n")
 			continue
 		}
 
-		/*
-		fmt.Printf("bw groups is %d\n", len(groups))
-		for i := 0; i < len(groups); i++ {
-			fmt.Printf("bw Groups[%d] : \"%s\"\n", i, groups[i])
-		}*/
 		if len(groups) > 1 {
 			localBWString := groups[1]
 			localBWVal, err := strconv.ParseFloat(localBWString, 64)
