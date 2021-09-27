@@ -20,7 +20,7 @@ const (
 	CMlcValueMultiplier = 1024
 
 	/*
-           Example output:
+	   Example output:
 	   Intel(R) Memory Latency Checker - v3.9
 	   Command line parameters: --bandwidth_matrix
 
