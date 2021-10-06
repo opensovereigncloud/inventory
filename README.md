@@ -11,6 +11,7 @@ then pushes it to the k8s cluster in a form of custom resource.
 - [golang](https://golang.org/) - to compile source code.
 - [curl](https://curl.se/) - to download resources.
 - [docker](https://www.docker.com/) - to build container with the tool.
+- [mlc](https://software.intel.com/content/www/us/en/develop/articles/intelr-memory-latency-checker.html) - memory benchmark utility
 
 ### Compile
 
@@ -79,7 +80,13 @@ Following configuration parameters are available
 
 ### Data
 
-Tool is collecting data about.
+There are currently 2 out of 4 planned tools:
+- inventory
+- planned: network analysis tool using LLDP
+- benchmark
+- planned: stresstest possibly using benchmark for transient error analysis
+
+inventory is collecting data about:
 - block device from sysfs `/sys/block`.
 - block device partition tables and partitions from `/dev`.
 - CPU from `/proc/cpuinfo`.
@@ -92,6 +99,14 @@ Tool is collecting data about.
 - NDP from kernel routing tables via ioctl.
 - PCI devices from sysfs `/sys/devices` using PCI IDs database.
 - Virtualization devices from `/sys`, `/proc` and DMI.
+
+benchmark is collecting data about:
+- local and remote memory latency
+- local and remote memory bandwidth
+Planned:
+- CPU test: integer, floating point, vector instructions
+- Disk: read write performance, sequential and random
+- Network latency and throughput
 
 ## Development
 
