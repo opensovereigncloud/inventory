@@ -23,8 +23,7 @@ import (
 )
 
 const (
-	CMACAddressLabelPrefix = "machine.onmetal.de/mac-address-"
-	CSonicNamespace        = "switch.onmetal.de"
+	CSonicNamespace = "switch.onmetal.de"
 )
 
 type Svc struct {
@@ -106,14 +105,6 @@ func (s *Svc) Save(inv *apiv1alpha1.Inventory) error {
 	}
 
 	existing.Spec = inv.Spec
-
-	if existing.Labels == nil {
-		existing.Labels = inv.Labels
-	} else {
-		for k, v := range inv.Labels {
-			existing.Labels[k] = v
-		}
-	}
 
 	if _, err := s.client.Update(context.Background(), existing, metav1.UpdateOptions{}); err != nil {
 		return errors.Wrap(err, "unhandled error on update")
@@ -386,11 +377,6 @@ func (s *Svc) setNICs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 		ndpMap[ndp.DeviceIndex] = append(ndpMap[ndp.DeviceIndex], n)
 	}
 
-	labels := cr.GetLabels()
-	if labels == nil {
-		labels = make(map[string]string)
-	}
-
 	nics := make([]apiv1alpha1.NICSpec, 0)
 	for _, nic := range inv.NICs {
 		// filter non-physical interfaces according to type of inventorying host
@@ -429,14 +415,8 @@ func (s *Svc) setNICs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 			Lanes:      nic.Lanes,
 		}
 
-		// Due to k8s validation which allows labels to consist of alphanumeric characters, '-', '_' or '.' need to replace
-		// colons in nic's MAC address
-		labels[CMACAddressLabelPrefix+strings.ReplaceAll(nic.Address, ":", "")] = ""
-
 		nics = append(nics, ns)
 	}
-
-	cr.SetLabels(labels)
 
 	sort.Slice(nics, func(i, j int) bool {
 		return nics[i].Name < nics[j].Name
