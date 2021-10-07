@@ -17,11 +17,9 @@ const (
 	CNodeDistancePath = "/distance"
 	CNodeMemInfo      = "/meminfo"
 
-	CDistanceTrimPattern = "\\D+"
-	CCPUListTrimPattern  = "[^0-9\\-,]"
+	CCPUListTrimPattern = "[^0-9\\-,]"
 )
 
-var CDistanceTrimRegexp = regexp.MustCompile(CDistanceTrimPattern)
 var CCPUListTrimRegexp = regexp.MustCompile(CCPUListTrimPattern)
 
 type NodeSvc struct {
