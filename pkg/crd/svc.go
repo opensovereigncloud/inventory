@@ -77,6 +77,7 @@ func (s *Svc) Build(inv *inventory.Inventory) (*apiv1alpha1.Inventory, error) {
 		s.setBlocks,
 		s.setMemory,
 		s.setCPUs,
+		s.setPCIDevices,
 		s.setNICs,
 		s.setVirt,
 		s.setHost,
@@ -231,11 +232,7 @@ func (s *Svc) setBlocks(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 		return blocks[i].Name < blocks[j].Name
 	})
 
-	cr.Spec.Blocks = &apiv1alpha1.BlockTotalSpec{
-		Count:    uint64(len(blocks)),
-		Capacity: capacity,
-		Blocks:   blocks,
-	}
+	cr.Spec.Blocks = blocks
 }
 
 func (s *Svc) setMemory(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
@@ -253,8 +250,6 @@ func (s *Svc) setCPUs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 		return
 	}
 
-	cpuTotal := &apiv1alpha1.CPUTotalSpec{}
-
 	cpuMarkMap := make(map[uint64]apiv1alpha1.CPUSpec, 0)
 
 	for _, cpuInfo := range inv.CPUInfo {
@@ -263,10 +258,6 @@ func (s *Svc) setCPUs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 			cpuMarkMap[cpuInfo.PhysicalID] = val
 			continue
 		}
-
-		cpuTotal.Sockets += 1
-		cpuTotal.Cores += cpuInfo.CpuCores
-		cpuTotal.Threads += cpuInfo.Siblings
 
 		cpu := apiv1alpha1.CPUSpec{
 			PhysicalID:      cpuInfo.PhysicalID,
@@ -313,9 +304,73 @@ func (s *Svc) setCPUs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 		return cpus[i].PhysicalID < cpus[j].PhysicalID
 	})
 
-	cpuTotal.CPUs = cpus
+	cr.Spec.CPUs = cpus
+}
 
-	cr.Spec.CPUs = cpuTotal
+func (s *Svc) setPCIDevices(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+	if len(inv.PCIBusDevices) == 0 {
+		return
+	}
+
+	pciDevices := make([]apiv1alpha1.PCIDeviceSpec, 0)
+	for _, pciBus := range inv.PCIBusDevices {
+		for _, pciDevice := range pciBus.Devices {
+			pciDeviceSpec := apiv1alpha1.PCIDeviceSpec{
+				BusID:   pciBus.ID,
+				Address: pciDevice.Address,
+			}
+			if pciDevice.Vendor != nil {
+				pciDeviceSpec.Vendor = &apiv1alpha1.PCIDeviceDescriptionSpec{
+					ID:   pciDevice.Vendor.ID,
+					Name: pciDevice.Vendor.Name,
+				}
+			}
+			if pciDevice.Subvendor != nil {
+				pciDeviceSpec.Subvendor = &apiv1alpha1.PCIDeviceDescriptionSpec{
+					ID:   pciDevice.Subvendor.ID,
+					Name: pciDevice.Subvendor.Name,
+				}
+			}
+			if pciDevice.Type != nil {
+				pciDeviceSpec.Type = &apiv1alpha1.PCIDeviceDescriptionSpec{
+					ID:   pciDevice.Type.ID,
+					Name: pciDevice.Type.Name,
+				}
+			}
+			if pciDevice.Subtype != nil {
+				pciDeviceSpec.Subtype = &apiv1alpha1.PCIDeviceDescriptionSpec{
+					ID:   pciDevice.Subtype.ID,
+					Name: pciDevice.Subtype.Name,
+				}
+			}
+			if pciDevice.Class != nil {
+				pciDeviceSpec.Class = &apiv1alpha1.PCIDeviceDescriptionSpec{
+					ID:   pciDevice.Class.ID,
+					Name: pciDevice.Class.Name,
+				}
+			}
+			if pciDevice.Subclass != nil {
+				pciDeviceSpec.Subclass = &apiv1alpha1.PCIDeviceDescriptionSpec{
+					ID:   pciDevice.Subclass.ID,
+					Name: pciDevice.Subclass.Name,
+				}
+			}
+			if pciDevice.ProgrammingInterface != nil {
+				pciDeviceSpec.ProgrammingInterface = &apiv1alpha1.PCIDeviceDescriptionSpec{
+					ID:   pciDevice.ProgrammingInterface.ID,
+					Name: pciDevice.ProgrammingInterface.Name,
+				}
+			}
+
+			pciDevices = append(pciDevices, pciDeviceSpec)
+		}
+	}
+
+	sort.Slice(pciDevices, func(i, j int) bool {
+		return pciDevices[i].Address < pciDevices[j].Address
+	})
+
+	cr.Spec.PCIDevices = pciDevices
 }
 
 func (s *Svc) setNICs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
@@ -422,10 +477,7 @@ func (s *Svc) setNICs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 		return nics[i].Name < nics[j].Name
 	})
 
-	cr.Spec.NICs = &apiv1alpha1.NICTotalSpec{
-		Count: uint64(len(nics)),
-		NICs:  nics,
-	}
+	cr.Spec.NICs = nics
 }
 
 func (s *Svc) setVirt(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {

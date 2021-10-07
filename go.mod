@@ -11,7 +11,8 @@ require (
 	github.com/lunixbochs/struc v0.0.0-20200707160740-784aaebc1d40
 	github.com/mdlayher/ethernet v0.0.0-20190606142754-0394541c37b7 // indirect
 	github.com/mdlayher/lldp v0.0.0-20150915211757-afd9f83164c5
-	github.com/onmetal/k8s-inventory v0.0.0-20210519063844-3509e56a2416
+	github.com/onmetal/k8s-inventory v0.0.0-20211007073217-43d02fa9c0d0
+	github.com/onmetal/k8s-size v0.0.0-20210426104325-faf578a13d80 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.7.0 // indirect
 	github.com/spf13/pflag v1.0.5
