@@ -305,6 +305,8 @@ github.com/onmetal/k8s-inventory v0.0.0-20211007055852-d8def55c633f h1:hBdpQJ0IG
 github.com/onmetal/k8s-inventory v0.0.0-20211007055852-d8def55c633f/go.mod h1:m+AgNTnUf0ch9uC0TB2XduBy41goS/1ifJg7dKYjTq8=
 github.com/onmetal/k8s-inventory v0.0.0-20211007073217-43d02fa9c0d0 h1:1ss333RQL3z3p80cnQ++J/pbKJei7C7MITUylA97pCQ=
 github.com/onmetal/k8s-inventory v0.0.0-20211007073217-43d02fa9c0d0/go.mod h1:m+AgNTnUf0ch9uC0TB2XduBy41goS/1ifJg7dKYjTq8=
+github.com/onmetal/k8s-inventory v0.0.0-20211008042948-dae3152b6b5a h1:0MbiZ9eCjESCEfCsf6aRr9VCvfjFTVXa/3BEFtBvaWs=
+github.com/onmetal/k8s-inventory v0.0.0-20211008042948-dae3152b6b5a/go.mod h1:m+AgNTnUf0ch9uC0TB2XduBy41goS/1ifJg7dKYjTq8=
 github.com/onmetal/k8s-size v0.0.0-20210330130030-0e28c9bdd1bf/go.mod h1:PZTjc0RgegODQKp8ca6r9Gg21tQZCvPM51F8z/se4ys=
 github.com/onmetal/k8s-size v0.0.0-20210426104325-faf578a13d80/go.mod h1:Pi09ghndU/+zKuyDrCzribl4OUWhsV6r1qHy8EVmrOY=
 github.com/onsi/ginkgo v0.0.0-20170829012221-11459a886d9c/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=

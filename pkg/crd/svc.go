@@ -77,6 +77,7 @@ func (s *Svc) Build(inv *inventory.Inventory) (*apiv1alpha1.Inventory, error) {
 		s.setBlocks,
 		s.setMemory,
 		s.setCPUs,
+		s.setNUMANodes,
 		s.setPCIDevices,
 		s.setNICs,
 		s.setVirt,
@@ -305,6 +306,32 @@ func (s *Svc) setCPUs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	})
 
 	cr.Spec.CPUs = cpus
+}
+
+func (s *Svc) setNUMANodes(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+	if len(inv.NumaNodes) == 0 {
+		return
+	}
+
+	numaNodes := make([]apiv1alpha1.NumaSpec, len(inv.NumaNodes))
+	for idx, numaNode := range inv.NumaNodes {
+		numaNodes[idx] = apiv1alpha1.NumaSpec{
+			ID:        numaNode.ID,
+			CPUs:      numaNode.CPUs,
+			Distances: numaNode.Distances,
+		}
+		if numaNode.Memory != nil {
+			numaNodes[idx].Memory = &apiv1alpha1.MemorySpec{
+				Total: numaNode.Memory.MemTotal,
+			}
+		}
+	}
+
+	sort.Slice(numaNodes, func(i, j int) bool {
+		return numaNodes[i].ID < numaNodes[j].ID
+	})
+
+	cr.Spec.NUMA = numaNodes
 }
 
 func (s *Svc) setPCIDevices(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
