@@ -2,6 +2,8 @@ package crd
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"sort"
 	"strconv"
 	"strings"
@@ -13,6 +15,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -66,23 +69,27 @@ func (s *Svc) BuildAndSave(inv *inventory.Inventory) error {
 }
 
 func (s *Svc) Build(inv *inventory.Inventory) (*apiv1alpha1.Inventory, error) {
+	setters := []func(*apiv1alpha1.Inventory, *inventory.Inventory){
+		s.SetSystem,
+		s.SetIPMIs,
+		s.SetBlocks,
+		s.SetMemory,
+		s.SetCPUs,
+		s.SetNUMANodes,
+		s.SetPCIDevices,
+		s.SetNICs,
+		s.SetVirt,
+		s.SetHost,
+		s.SetDistro,
+	}
+
+	return s.BuildInOrder(inv, setters)
+}
+
+func (s *Svc) BuildInOrder(inv *inventory.Inventory, setters []func(*apiv1alpha1.Inventory, *inventory.Inventory)) (*apiv1alpha1.Inventory, error) {
 	cr := &apiv1alpha1.Inventory{
 		ObjectMeta: metav1.ObjectMeta{},
 		Spec:       apiv1alpha1.InventorySpec{},
-	}
-
-	setters := []func(*apiv1alpha1.Inventory, *inventory.Inventory){
-		s.setSystem,
-		s.setIPMIs,
-		s.setBlocks,
-		s.setMemory,
-		s.setCPUs,
-		s.setNUMANodes,
-		s.setPCIDevices,
-		s.setNICs,
-		s.setVirt,
-		s.setHost,
-		s.setDistro,
 	}
 
 	for _, setter := range setters {
@@ -115,7 +122,20 @@ func (s *Svc) Save(inv *apiv1alpha1.Inventory) error {
 	return nil
 }
 
-func (s *Svc) setSystem(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+func (s *Svc) Patch(name string, patch interface{}) error {
+	patchData, err := json.Marshal(patch)
+	if err != nil {
+		return errors.Wrap(err, "unable to marshal inventory")
+	}
+	fmt.Println(string(patchData))
+	_, err = s.client.Patch(context.Background(), name, types.MergePatchType, patchData, metav1.PatchOptions{})
+	if err != nil {
+		return errors.Wrap(err, "unable to patch inventory")
+	}
+	return nil
+}
+
+func (s *Svc) SetSystem(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	if inv.DMI == nil {
 		return
 	}
@@ -145,7 +165,7 @@ func (s *Svc) setSystem(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	}
 }
 
-func (s *Svc) setIPMIs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+func (s *Svc) SetIPMIs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	ipmiDevCount := len(inv.IPMIDevices)
 	if ipmiDevCount == 0 {
 		return
@@ -171,7 +191,7 @@ func (s *Svc) setIPMIs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	cr.Spec.IPMIs = ipmis
 }
 
-func (s *Svc) setBlocks(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+func (s *Svc) SetBlocks(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	if len(inv.BlockDevices) == 0 {
 		return
 	}
@@ -236,7 +256,7 @@ func (s *Svc) setBlocks(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	cr.Spec.Blocks = blocks
 }
 
-func (s *Svc) setMemory(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+func (s *Svc) SetMemory(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	if inv.MemInfo == nil {
 		return
 	}
@@ -246,7 +266,7 @@ func (s *Svc) setMemory(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	}
 }
 
-func (s *Svc) setCPUs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+func (s *Svc) SetCPUs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	if len(inv.CPUInfo) == 0 {
 		return
 	}
@@ -308,7 +328,7 @@ func (s *Svc) setCPUs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	cr.Spec.CPUs = cpus
 }
 
-func (s *Svc) setNUMANodes(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+func (s *Svc) SetNUMANodes(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	if len(inv.NumaNodes) == 0 {
 		return
 	}
@@ -334,7 +354,7 @@ func (s *Svc) setNUMANodes(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) 
 	cr.Spec.NUMA = numaNodes
 }
 
-func (s *Svc) setPCIDevices(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+func (s *Svc) SetPCIDevices(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	if len(inv.PCIBusDevices) == 0 {
 		return
 	}
@@ -400,7 +420,7 @@ func (s *Svc) setPCIDevices(cr *apiv1alpha1.Inventory, inv *inventory.Inventory)
 	cr.Spec.PCIDevices = pciDevices
 }
 
-func (s *Svc) setNICs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+func (s *Svc) SetNICs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	if len(inv.NICs) == 0 {
 		return
 	}
@@ -507,7 +527,7 @@ func (s *Svc) setNICs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	cr.Spec.NICs = nics
 }
 
-func (s *Svc) setVirt(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+func (s *Svc) SetVirt(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	if inv.Virtualization == nil {
 		return
 	}
@@ -517,7 +537,7 @@ func (s *Svc) setVirt(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	}
 }
 
-func (s *Svc) setHost(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+func (s *Svc) SetHost(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	if inv.Host == nil {
 		return
 	}
@@ -527,7 +547,7 @@ func (s *Svc) setHost(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	}
 }
 
-func (s *Svc) setDistro(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+func (s *Svc) SetDistro(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	if inv.Distro == nil {
 		return
 	}

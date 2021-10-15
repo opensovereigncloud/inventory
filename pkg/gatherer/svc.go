@@ -126,8 +126,6 @@ func NewSvc() (*Svc, int) {
 }
 
 func (s *Svc) Gather() int {
-	inv := &inventory.Inventory{}
-
 	setters := []func(inventory *inventory.Inventory) error{
 		s.setDMI,
 		s.setCPUInfo,
@@ -143,6 +141,8 @@ func (s *Svc) Gather() int {
 		s.setHost,
 		s.setDistro,
 	}
+
+	inv := s.GatherInOrder(setters)
 
 	for _, setter := range setters {
 		err := setter(inv)
@@ -170,6 +170,19 @@ func (s *Svc) Gather() int {
 	}
 
 	return COKRetCode
+}
+
+func (s *Svc) GatherInOrder(setters []func(inventory *inventory.Inventory) error) *inventory.Inventory {
+	inv := &inventory.Inventory{}
+
+	for _, setter := range setters {
+		err := setter(inv)
+		if err != nil {
+			s.printer.VErr(errors.Wrap(err, "unable to set value"))
+		}
+	}
+
+	return inv
 }
 
 func (s *Svc) setDMI(inv *inventory.Inventory) error {

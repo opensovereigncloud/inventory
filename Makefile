@@ -1,4 +1,5 @@
-BIN_NAME = "inventory"
+INVENTORY_BIN_NAME = "inventory"
+LLDP_UPDATE_BIN_NAME = "lldp-update"
 
 DOCKER_REGISTRY = "localhost:5000"
 DOCKER_IMAGE_NAME = "inventory"
@@ -11,7 +12,9 @@ all: compile
 
 .PHONY: compile
 compile: fmt vet
-	go build -o dist/$(BIN_NAME) cmd/inventory/main.go
+	for BIN_NAME in $(INVENTORY_BIN_NAME) $(LLDP_UPDATE_BIN_NAME); do \
+		go build -o dist/$$BIN_NAME cmd/$$BIN_NAME/main.go; \
+	done
 	cp -rf res/ dist/
 
 .PHONY: fmt
