@@ -1,41 +1,27 @@
 package gatherer
 
 import (
-	"bytes"
-	"encoding/json"
-
 	"github.com/pkg/errors"
 
 	"github.com/onmetal/inventory/pkg/block"
 	"github.com/onmetal/inventory/pkg/cpu"
-	"github.com/onmetal/inventory/pkg/crd"
 	"github.com/onmetal/inventory/pkg/distro"
 	"github.com/onmetal/inventory/pkg/dmi"
-	"github.com/onmetal/inventory/pkg/flags"
 	"github.com/onmetal/inventory/pkg/host"
 	"github.com/onmetal/inventory/pkg/inventory"
 	"github.com/onmetal/inventory/pkg/ipmi"
 	"github.com/onmetal/inventory/pkg/lldp"
-	"github.com/onmetal/inventory/pkg/lldp/frame"
 	"github.com/onmetal/inventory/pkg/mem"
 	"github.com/onmetal/inventory/pkg/netlink"
 	"github.com/onmetal/inventory/pkg/nic"
 	"github.com/onmetal/inventory/pkg/numa"
 	"github.com/onmetal/inventory/pkg/pci"
 	"github.com/onmetal/inventory/pkg/printer"
-	"github.com/onmetal/inventory/pkg/redis"
 	"github.com/onmetal/inventory/pkg/virt"
-)
-
-const (
-	COKRetCode  = 0
-	CErrRetCode = -1
 )
 
 type Svc struct {
 	printer *printer.Svc
-
-	crdSvc *crd.Svc
 
 	dmiSvc     *dmi.Svc
 	numaSvc    *numa.Svc
@@ -52,97 +38,40 @@ type Svc struct {
 	distroSvc  *distro.Svc
 }
 
-func NewSvc() (*Svc, int) {
-	f := flags.NewFlags()
-
-	p := printer.NewSvc(f.Verbose)
-
-	crdSvc, err := crd.NewSvc(f.Kubeconfig, f.KubeNamespace)
-	if err != nil {
-		p.Err(errors.Wrapf(err, "unable to create k8s resorce svc"))
-		return nil, CErrRetCode
+func NewSvc(printer *printer.Svc, opts ...Option) *Svc {
+	svc := &Svc{
+		printer: printer,
 	}
 
-	pciIDs, err := pci.NewIDs()
-	if err != nil {
-		p.Err(errors.Wrapf(err, "unable to load PCI IDs"))
-		return nil, CErrRetCode
+	for _, opt := range opts {
+		opt(svc)
 	}
 
-	rawDmiSvc := dmi.NewRawSvc(f.Root)
-	dmiSvc := dmi.NewSvc(p, rawDmiSvc)
-
-	cpuInfoSvc := cpu.NewInfoSvc(p, f.Root)
-	memInfoSvc := mem.NewInfoSvc(p, f.Root)
-
-	numaStatSvc := numa.NewStatSvc(p)
-	numaNodeSvc := numa.NewNodeSvc(memInfoSvc, numaStatSvc)
-	numaSvc := numa.NewSvc(p, numaNodeSvc, f.Root)
-
-	partitionTableSvc := block.NewPartitionTableSvc(f.Root)
-	blockDeviceStatSvc := block.NewDeviceStatSvc(p)
-	blockDeviceSvc := block.NewDeviceSvc(p, partitionTableSvc, blockDeviceStatSvc)
-	blockSvc := block.NewSvc(p, blockDeviceSvc, f.Root)
-
-	pciDevSvc := pci.NewDeviceSvc(p, pciIDs)
-	pciBusSvc := pci.NewBusSvc(p, pciDevSvc)
-	pciSvc := pci.NewSvc(p, pciBusSvc, f.Root)
-
-	hostSvc := host.NewSvc(p, f.Root)
-
-	redisSvc := redis.NewRedisSvc(f.Root)
-	lldpFrameInfoSvc := frame.NewFrameSvc(p)
-	lldpSvc := lldp.NewSvc(p, lldpFrameInfoSvc, hostSvc, redisSvc, f.Root)
-
-	nicDevSvc := nic.NewDeviceSvc(p)
-	nicSvc := nic.NewSvc(p, nicDevSvc, hostSvc, redisSvc, f.Root)
-
-	ipmiDevInfoSvc := ipmi.NewDeviceSvc(p)
-	ipmiSvc := ipmi.NewSvc(p, ipmiDevInfoSvc, f.Root)
-
-	nlSvc := netlink.NewSvc(p, f.Root)
-
-	virtSvc := virt.NewSvc(dmiSvc, cpuInfoSvc, f.Root)
-
-	distroSvc := distro.NewSvc(p, hostSvc, f.Root)
-
-	return &Svc{
-		printer:    p,
-		crdSvc:     crdSvc,
-		dmiSvc:     dmiSvc,
-		numaSvc:    numaSvc,
-		blockSvc:   blockSvc,
-		pciSvc:     pciSvc,
-		cpuInfoSvc: cpuInfoSvc,
-		memInfoSvc: memInfoSvc,
-		lldpSvc:    lldpSvc,
-		nicSvc:     nicSvc,
-		ipmiSvc:    ipmiSvc,
-		netlinkSvc: nlSvc,
-		virtSvc:    virtSvc,
-		hostSvc:    hostSvc,
-		distroSvc:  distroSvc,
-	}, 0
+	return svc
 }
 
-func (s *Svc) Gather() int {
-	inv := &inventory.Inventory{}
-
+func (s *Svc) Gather() *inventory.Inventory {
 	setters := []func(inventory *inventory.Inventory) error{
-		s.setDMI,
-		s.setCPUInfo,
-		s.setMemInfo,
-		s.setNumaNodes,
-		s.setBlockDevices,
-		s.setPCIBusDevices,
-		s.setIPMIDevices,
-		s.setNICs,
-		s.setLLDPFrames,
-		s.setNDPFrames,
-		s.setVirt,
-		s.setHost,
-		s.setDistro,
+		s.SetDMI,
+		s.SetCPUInfo,
+		s.SetMemInfo,
+		s.SetNumaNodes,
+		s.SetBlockDevices,
+		s.SetPCIBusDevices,
+		s.SetIPMIDevices,
+		s.SetNICs,
+		s.SetLLDPFrames,
+		s.SetNDPFrames,
+		s.SetVirt,
+		s.SetHost,
+		s.SetDistro,
 	}
+
+	return s.GatherInOrder(setters)
+}
+
+func (s *Svc) GatherInOrder(setters []func(inventory *inventory.Inventory) error) *inventory.Inventory {
+	inv := &inventory.Inventory{}
 
 	for _, setter := range setters {
 		err := setter(inv)
@@ -151,28 +80,10 @@ func (s *Svc) Gather() int {
 		}
 	}
 
-	jsonBytes, err := json.Marshal(inv)
-	if err != nil {
-		s.printer.VErr(errors.Wrap(err, "unable to marshal result to json"))
-	}
-
-	var prettifiedJsonBuf bytes.Buffer
-	if err := json.Indent(&prettifiedJsonBuf, jsonBytes, "", "\t"); err != nil {
-		s.printer.VErr(errors.Wrap(err, "unable to indent json"))
-	}
-
-	s.printer.VOut("Gathered data:")
-	s.printer.VOut(prettifiedJsonBuf.String())
-
-	if err := s.crdSvc.BuildAndSave(inv); err != nil {
-		s.printer.Err(errors.Wrap(err, "unable to save inventory resource"))
-		return CErrRetCode
-	}
-
-	return COKRetCode
+	return inv
 }
 
-func (s *Svc) setDMI(inv *inventory.Inventory) error {
+func (s *Svc) SetDMI(inv *inventory.Inventory) error {
 	data, err := s.dmiSvc.GetData()
 	if err != nil {
 		return errors.Wrap(err, "unable to get dmi data")
@@ -181,7 +92,7 @@ func (s *Svc) setDMI(inv *inventory.Inventory) error {
 	return nil
 }
 
-func (s *Svc) setCPUInfo(inv *inventory.Inventory) error {
+func (s *Svc) SetCPUInfo(inv *inventory.Inventory) error {
 	data, err := s.cpuInfoSvc.GetInfo()
 	if err != nil {
 		return errors.Wrap(err, "unable to get proc data")
@@ -190,7 +101,7 @@ func (s *Svc) setCPUInfo(inv *inventory.Inventory) error {
 	return nil
 }
 
-func (s *Svc) setMemInfo(inv *inventory.Inventory) error {
+func (s *Svc) SetMemInfo(inv *inventory.Inventory) error {
 	data, err := s.memInfoSvc.GetInfo()
 	if err != nil {
 		return errors.Wrap(err, "unable to get proc data")
@@ -199,7 +110,7 @@ func (s *Svc) setMemInfo(inv *inventory.Inventory) error {
 	return nil
 }
 
-func (s *Svc) setNumaNodes(inv *inventory.Inventory) error {
+func (s *Svc) SetNumaNodes(inv *inventory.Inventory) error {
 	data, err := s.numaSvc.GetData()
 	if err != nil {
 		return errors.Wrap(err, "unable to get numa data")
@@ -208,7 +119,7 @@ func (s *Svc) setNumaNodes(inv *inventory.Inventory) error {
 	return nil
 }
 
-func (s *Svc) setBlockDevices(inv *inventory.Inventory) error {
+func (s *Svc) SetBlockDevices(inv *inventory.Inventory) error {
 	data, err := s.blockSvc.GetData()
 	if err != nil {
 		return errors.Wrap(err, "unable to get block data")
@@ -217,7 +128,7 @@ func (s *Svc) setBlockDevices(inv *inventory.Inventory) error {
 	return nil
 }
 
-func (s *Svc) setPCIBusDevices(inv *inventory.Inventory) error {
+func (s *Svc) SetPCIBusDevices(inv *inventory.Inventory) error {
 	data, err := s.pciSvc.GetData()
 	if err != nil {
 		return errors.Wrap(err, "unable to get pci data")
@@ -226,7 +137,7 @@ func (s *Svc) setPCIBusDevices(inv *inventory.Inventory) error {
 	return nil
 }
 
-func (s *Svc) setIPMIDevices(inv *inventory.Inventory) error {
+func (s *Svc) SetIPMIDevices(inv *inventory.Inventory) error {
 	data, err := s.ipmiSvc.GetData()
 	if err != nil {
 		return errors.Wrap(err, "unable to get ipmi data")
@@ -235,7 +146,7 @@ func (s *Svc) setIPMIDevices(inv *inventory.Inventory) error {
 	return nil
 }
 
-func (s *Svc) setNICs(inv *inventory.Inventory) error {
+func (s *Svc) SetNICs(inv *inventory.Inventory) error {
 	data, err := s.nicSvc.GetData()
 	if err != nil {
 		return errors.Wrap(err, "unable to get nic data")
@@ -244,7 +155,7 @@ func (s *Svc) setNICs(inv *inventory.Inventory) error {
 	return nil
 }
 
-func (s *Svc) setLLDPFrames(inv *inventory.Inventory) error {
+func (s *Svc) SetLLDPFrames(inv *inventory.Inventory) error {
 	data, err := s.lldpSvc.GetData()
 	if err != nil {
 		return errors.Wrap(err, "unable to get lldp data")
@@ -253,7 +164,7 @@ func (s *Svc) setLLDPFrames(inv *inventory.Inventory) error {
 	return nil
 }
 
-func (s *Svc) setNDPFrames(inv *inventory.Inventory) error {
+func (s *Svc) SetNDPFrames(inv *inventory.Inventory) error {
 	data, err := s.netlinkSvc.GetIPv6NeighbourData()
 	if err != nil {
 		return errors.Wrap(err, "unable to get ndp data")
@@ -262,7 +173,7 @@ func (s *Svc) setNDPFrames(inv *inventory.Inventory) error {
 	return nil
 }
 
-func (s *Svc) setVirt(inv *inventory.Inventory) error {
+func (s *Svc) SetVirt(inv *inventory.Inventory) error {
 	data, err := s.virtSvc.GetData()
 	if err != nil {
 		return errors.Wrap(err, "unable to get virt")
@@ -271,7 +182,7 @@ func (s *Svc) setVirt(inv *inventory.Inventory) error {
 	return nil
 }
 
-func (s *Svc) setHost(inv *inventory.Inventory) error {
+func (s *Svc) SetHost(inv *inventory.Inventory) error {
 	hostInfo, err := s.hostSvc.GetData()
 	if err != nil {
 		return errors.Wrap(err, "unable to get host info")
@@ -280,7 +191,7 @@ func (s *Svc) setHost(inv *inventory.Inventory) error {
 	return nil
 }
 
-func (s *Svc) setDistro(inv *inventory.Inventory) error {
+func (s *Svc) SetDistro(inv *inventory.Inventory) error {
 	if inv.Host == nil {
 		cause := errors.New("no host data")
 		return errors.Wrap(cause, "unable to get distro info")
