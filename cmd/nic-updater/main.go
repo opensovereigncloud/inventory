@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	appInstance, ret := app.NewInventoryApp()
+	appInstance, ret := app.NewNICUpdaterApp()
 	if ret != 0 {
 		os.Exit(ret)
 	}

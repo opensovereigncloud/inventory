@@ -7,14 +7,14 @@ import (
 	"k8s.io/client-go/util/homedir"
 )
 
-type Flags struct {
+type InventoryFlags struct {
 	Verbose       bool
 	Root          string
 	Kubeconfig    string
 	KubeNamespace string
 }
 
-func NewFlags() *Flags {
+func NewInventoryFlags() *InventoryFlags {
 	var kubeconfigDefaultPath string
 
 	if home := homedir.HomeDir(); home != "" {
@@ -27,7 +27,7 @@ func NewFlags() *Flags {
 	kubeNamespace := pflag.StringP("namespace", "n", "default", "k8s namespace")
 	pflag.Parse()
 
-	return &Flags{
+	return &InventoryFlags{
 		Verbose:       *verbose,
 		Root:          *root,
 		Kubeconfig:    *kubeconfig,

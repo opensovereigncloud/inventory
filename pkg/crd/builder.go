@@ -1,74 +1,31 @@
 package crd
 
 import (
-	"context"
-	"encoding/json"
-	"fmt"
 	"sort"
 	"strconv"
 	"strings"
 
-	"github.com/google/uuid"
-	apiv1alpha1 "github.com/onmetal/k8s-inventory/api/v1alpha1"
-	clientv1alpha1 "github.com/onmetal/k8s-inventory/clientset/v1alpha1"
-	"github.com/pkg/errors"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/tools/clientcmd"
-
 	"github.com/onmetal/inventory/pkg/inventory"
 	"github.com/onmetal/inventory/pkg/lldp/frame"
 	"github.com/onmetal/inventory/pkg/netlink"
+	"github.com/onmetal/inventory/pkg/printer"
 	"github.com/onmetal/inventory/pkg/utils"
+	apiv1alpha1 "github.com/onmetal/k8s-inventory/api/v1alpha1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const (
-	CSonicNamespace = "switch.onmetal.de"
-)
-
-type Svc struct {
-	client clientv1alpha1.InventoryInterface
+type BuilderSvc struct {
+	printer *printer.Svc
 }
 
-func NewSvc(kubeconfig string, namespace string) (*Svc, error) {
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
-	if err != nil {
-		return nil, errors.Wrapf(err, "unable to read kubeconfig from path %s", kubeconfig)
+func NewBuilderSvc(printer *printer.Svc) *BuilderSvc {
+	return &BuilderSvc{
+		printer: printer,
 	}
-
-	if err := apiv1alpha1.AddToScheme(scheme.Scheme); err != nil {
-		return nil, errors.Wrap(err, "unable to add registered types to client scheme")
-	}
-
-	clientset, err := clientv1alpha1.NewForConfig(config)
-	if err != nil {
-		return nil, errors.Wrap(err, "unable to build clientset from config")
-	}
-
-	client := clientset.Inventories(namespace)
-
-	return &Svc{
-		client: client,
-	}, nil
 }
 
-func (s *Svc) BuildAndSave(inv *inventory.Inventory) error {
-	cr, err := s.Build(inv)
-	if err != nil {
-		return errors.Wrap(err, "unable to build inventory resource manifest")
-	}
-
-	if err := s.Save(cr); err != nil {
-		return errors.Wrap(err, "unable to save inventory resource")
-	}
-
-	return nil
-}
-
-func (s *Svc) Build(inv *inventory.Inventory) (*apiv1alpha1.Inventory, error) {
+func (s *BuilderSvc) Build(inv *inventory.Inventory) (*apiv1alpha1.Inventory, error) {
 	setters := []func(*apiv1alpha1.Inventory, *inventory.Inventory){
 		s.SetSystem,
 		s.SetIPMIs,
@@ -86,7 +43,7 @@ func (s *Svc) Build(inv *inventory.Inventory) (*apiv1alpha1.Inventory, error) {
 	return s.BuildInOrder(inv, setters)
 }
 
-func (s *Svc) BuildInOrder(inv *inventory.Inventory, setters []func(*apiv1alpha1.Inventory, *inventory.Inventory)) (*apiv1alpha1.Inventory, error) {
+func (s *BuilderSvc) BuildInOrder(inv *inventory.Inventory, setters []func(*apiv1alpha1.Inventory, *inventory.Inventory)) (*apiv1alpha1.Inventory, error) {
 	cr := &apiv1alpha1.Inventory{
 		ObjectMeta: metav1.ObjectMeta{},
 		Spec:       apiv1alpha1.InventorySpec{},
@@ -99,43 +56,7 @@ func (s *Svc) BuildInOrder(inv *inventory.Inventory, setters []func(*apiv1alpha1
 	return cr, nil
 }
 
-func (s *Svc) Save(inv *apiv1alpha1.Inventory) error {
-	_, err := s.client.Create(context.Background(), inv, metav1.CreateOptions{})
-	if err == nil {
-		return nil
-	}
-	if !apierrors.IsAlreadyExists(err) {
-		return errors.Wrap(err, "unhandled error on creation")
-	}
-
-	existing, err := s.client.Get(context.Background(), inv.Name, metav1.GetOptions{})
-	if err != nil {
-		return errors.Wrap(err, "unable to get resource")
-	}
-
-	existing.Spec = inv.Spec
-
-	if _, err := s.client.Update(context.Background(), existing, metav1.UpdateOptions{}); err != nil {
-		return errors.Wrap(err, "unhandled error on update")
-	}
-
-	return nil
-}
-
-func (s *Svc) Patch(name string, patch interface{}) error {
-	patchData, err := json.Marshal(patch)
-	if err != nil {
-		return errors.Wrap(err, "unable to marshal inventory")
-	}
-	fmt.Println(string(patchData))
-	_, err = s.client.Patch(context.Background(), name, types.MergePatchType, patchData, metav1.PatchOptions{})
-	if err != nil {
-		return errors.Wrap(err, "unable to patch inventory")
-	}
-	return nil
-}
-
-func (s *Svc) SetSystem(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+func (s *BuilderSvc) SetSystem(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	if inv.DMI == nil {
 		return
 	}
@@ -165,7 +86,7 @@ func (s *Svc) SetSystem(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	}
 }
 
-func (s *Svc) SetIPMIs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+func (s *BuilderSvc) SetIPMIs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	ipmiDevCount := len(inv.IPMIDevices)
 	if ipmiDevCount == 0 {
 		return
@@ -191,7 +112,7 @@ func (s *Svc) SetIPMIs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	cr.Spec.IPMIs = ipmis
 }
 
-func (s *Svc) SetBlocks(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+func (s *BuilderSvc) SetBlocks(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	if len(inv.BlockDevices) == 0 {
 		return
 	}
@@ -256,7 +177,7 @@ func (s *Svc) SetBlocks(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	cr.Spec.Blocks = blocks
 }
 
-func (s *Svc) SetMemory(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+func (s *BuilderSvc) SetMemory(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	if inv.MemInfo == nil {
 		return
 	}
@@ -266,7 +187,7 @@ func (s *Svc) SetMemory(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	}
 }
 
-func (s *Svc) SetCPUs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+func (s *BuilderSvc) SetCPUs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	if len(inv.CPUInfo) == 0 {
 		return
 	}
@@ -328,7 +249,7 @@ func (s *Svc) SetCPUs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	cr.Spec.CPUs = cpus
 }
 
-func (s *Svc) SetNUMANodes(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+func (s *BuilderSvc) SetNUMANodes(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	if len(inv.NumaNodes) == 0 {
 		return
 	}
@@ -354,7 +275,7 @@ func (s *Svc) SetNUMANodes(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) 
 	cr.Spec.NUMA = numaNodes
 }
 
-func (s *Svc) SetPCIDevices(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+func (s *BuilderSvc) SetPCIDevices(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	if len(inv.PCIBusDevices) == 0 {
 		return
 	}
@@ -420,7 +341,7 @@ func (s *Svc) SetPCIDevices(cr *apiv1alpha1.Inventory, inv *inventory.Inventory)
 	cr.Spec.PCIDevices = pciDevices
 }
 
-func (s *Svc) SetNICs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+func (s *BuilderSvc) SetNICs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	if len(inv.NICs) == 0 {
 		return
 	}
@@ -527,7 +448,7 @@ func (s *Svc) SetNICs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	cr.Spec.NICs = nics
 }
 
-func (s *Svc) SetVirt(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+func (s *BuilderSvc) SetVirt(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	if inv.Virtualization == nil {
 		return
 	}
@@ -537,7 +458,7 @@ func (s *Svc) SetVirt(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	}
 }
 
-func (s *Svc) SetHost(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+func (s *BuilderSvc) SetHost(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	if inv.Host == nil {
 		return
 	}
@@ -547,7 +468,7 @@ func (s *Svc) SetHost(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	}
 }
 
-func (s *Svc) SetDistro(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+func (s *BuilderSvc) SetDistro(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	if inv.Distro == nil {
 		return
 	}
@@ -561,10 +482,4 @@ func (s *Svc) SetDistro(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 		BuildNumber:   inv.Distro.BuildNumber,
 		BuildBy:       inv.Distro.BuildBy,
 	}
-}
-
-func getUUID(namespace string, identifier string) string {
-	namespaceUUID := uuid.NewMD5(uuid.UUID{}, []byte(namespace))
-	newUUID := uuid.NewMD5(namespaceUUID, []byte(identifier))
-	return newUUID.String()
 }

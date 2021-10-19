@@ -1,5 +1,5 @@
 INVENTORY_BIN_NAME = "inventory"
-LLDP_UPDATE_BIN_NAME = "lldp-update"
+LLDP_UPDATE_BIN_NAME = "nic-updater"
 
 DOCKER_REGISTRY = "localhost:5000"
 DOCKER_IMAGE_NAME = "inventory"
