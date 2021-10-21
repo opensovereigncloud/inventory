@@ -374,7 +374,7 @@ func (s *BuilderSvc) SetNICs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory
 		}
 
 		if _, ok := lldpMap[id]; !ok {
-			lldpMap[id] = make([]apiv1alpha1.LLDPSpec, 1)
+			lldpMap[id] = make([]apiv1alpha1.LLDPSpec, 0)
 		}
 
 		lldpMap[id] = append(lldpMap[id], l)
@@ -394,7 +394,7 @@ func (s *BuilderSvc) SetNICs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory
 		}
 
 		if _, ok := ndpMap[ndp.DeviceIndex]; !ok {
-			ndpMap[ndp.DeviceIndex] = make([]apiv1alpha1.NDPSpec, 1)
+			ndpMap[ndp.DeviceIndex] = make([]apiv1alpha1.NDPSpec, 0)
 		}
 
 		ndpMap[ndp.DeviceIndex] = append(ndpMap[ndp.DeviceIndex], n)
