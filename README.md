@@ -1,7 +1,11 @@
 # inventory
 
-inventory is a CLi tool that collects data on host about its hardware and configuration and, 
+inventory project represents a set of CLI tools responsible for data collection on host about its hardware and configuration and, 
 then pushes it to the k8s cluster in a form of custom resource. 
+
+Currently, following tools are provided:
+- `inventory` - collects data about system hardware;
+- `nic-updater` - collects only NIC data (LLDP and NDP), in order to keep it up to date.
 
 ## Getting started
 
@@ -26,9 +30,6 @@ To execute, simply run
 
     sudo ./dist/inventory
 
-| This will not work inside the WSL2 machine due to bug [#6874](https://github.com/microsoft/WSL/issues/6874) |
-| --- |
-
 Program uses machine's DMI interface and ioctl, so it requires additional privileges.
 
 ### Clean
@@ -41,7 +42,7 @@ To remove built distribution directory run
 
 ### Flags
 
-Following configuration parameters are available 
+Following configuration parameters are available for both binaries
 
 - `-k, --kubeconfig`
   
@@ -52,8 +53,30 @@ Following configuration parameters are available
   
     Accepts `string`.
   
-    Default value is `/home/${username}/.kube/config` if home directory is  present, empty string otherwise.
-  
+    Default value is `/home/${username}/.kube/config` if home directory is present, empty string otherwise.
+
+- `-g, --gateway`
+
+    Gateway host. 
+
+    Resource will be pushed to cluster through provided gateway host address.
+
+    If provided, has a priority over kubeconfig.
+
+    Accepts `string`.
+
+    Default value is empty string.
+
+- `-t, --timeout`
+
+    Request timeout.
+
+    Used if resource is pushed through gateway.
+
+    Accepts `string`.
+
+    Default value is empty string.
+
 - `-n, --namespace`
   
     k8s namespace.
@@ -97,6 +120,10 @@ Tool is collecting data about.
 - Virtualization devices from `/sys`, `/proc` and DMI.
 
 ## Development
+
+### Known issues
+
+- Inventory tools will not work inside the WSL2 machine due to bug [#6874](https://github.com/microsoft/WSL/issues/6874)
 
 ### Make goals
 
