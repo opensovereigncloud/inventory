@@ -15,6 +15,16 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	CLoopbackNICPrefix = "lo"
+	CDockerNICPrefix   = "docker"
+)
+
+var CNICPrefixesToExclude = []string{
+	CLoopbackNICPrefix,
+	CDockerNICPrefix,
+}
+
 type BuilderSvc struct {
 	printer *printer.Svc
 }
@@ -402,6 +412,20 @@ func (s *BuilderSvc) SetNICs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory
 
 	nics := make([]apiv1alpha1.NICSpec, 0)
 	for _, nic := range inv.NICs {
+		// it was reported that loopback and docker interfaces on some systems may have
+		// PCI address assigned (but they have weird format), so we need to exclude them too
+		shouldExclude := false
+		for _, prefix := range CNICPrefixesToExclude {
+			if strings.HasPrefix(nic.Name, prefix) {
+				shouldExclude = true
+				break
+			}
+		}
+
+		if shouldExclude {
+			continue
+		}
+
 		// filter non-physical interfaces according to type of inventorying host
 		if inv.Host.Type == utils.CSwitchType {
 			if nic.PCIAddress == "" && !strings.HasPrefix(nic.Name, "Ethernet") {
