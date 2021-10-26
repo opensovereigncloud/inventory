@@ -202,7 +202,7 @@ func (s *BuilderSvc) SetCPUs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory
 		return
 	}
 
-	cpuMarkMap := make(map[uint64]apiv1alpha1.CPUSpec, 0)
+	cpuMarkMap := make(map[uint64]apiv1alpha1.CPUSpec)
 
 	for _, cpuInfo := range inv.CPUInfo {
 		if val, ok := cpuMarkMap[cpuInfo.PhysicalID]; ok {

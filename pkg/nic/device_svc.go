@@ -41,6 +41,7 @@ func (s *DeviceSvc) GetDevice(thePath string, name string) (*Device, error) {
 		nic.defInterfaceLink,
 		nic.defLinkMode,
 		nic.defMTU,
+		nic.defNameAssignType,
 		nic.defNetDevGroup,
 		nic.defOperationalState,
 		nic.defPhysicalPortID,
