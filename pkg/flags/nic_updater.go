@@ -12,6 +12,8 @@ type NICUpdaterFlags struct {
 	Root          string
 	Kubeconfig    string
 	KubeNamespace string
+	Gateway       string
+	Timeout       string
 }
 
 func NewNICUpdaterFlags() *NICUpdaterFlags {
@@ -25,6 +27,8 @@ func NewNICUpdaterFlags() *NICUpdaterFlags {
 	root := pflag.StringP("root", "r", "/", "path to root file system")
 	kubeconfig := pflag.StringP("kubeconfig", "k", kubeconfigDefaultPath, "path to kubeconfig")
 	kubeNamespace := pflag.StringP("namespace", "n", "default", "k8s namespace")
+	gateway := pflag.StringP("gateway", "g", "", "gateway address")
+	timeout := pflag.StringP("timeout", "t", "30s", "request timeout, if gateway is used")
 	pflag.Parse()
 
 	return &NICUpdaterFlags{
@@ -32,5 +36,7 @@ func NewNICUpdaterFlags() *NICUpdaterFlags {
 		Root:          *root,
 		Kubeconfig:    *kubeconfig,
 		KubeNamespace: *kubeNamespace,
+		Gateway:       *gateway,
+		Timeout:       *timeout,
 	}
 }

@@ -21,7 +21,7 @@ type NICUpdaterApp struct {
 	printer       *printer.Svc
 	gathererSvc   *gatherer.Svc
 	crdBuilderSvc *crd.BuilderSvc
-	crdSaverSvc   *crd.SaverSvc
+	crdSaverSvc   crd.SaverSvc
 }
 
 func NewNICUpdaterApp() (*NICUpdaterApp, int) {
@@ -31,9 +31,20 @@ func NewNICUpdaterApp() (*NICUpdaterApp, int) {
 
 	crdBuilderSvc := crd.NewBuilderSvc(p)
 
-	crdSaverSvc, err := crd.NewSaverSvc(f.Kubeconfig, f.KubeNamespace)
+	var crdSvcConstructor func() (crd.SaverSvc, error)
+	if f.Gateway != "" {
+		crdSvcConstructor = func() (crd.SaverSvc, error) {
+			return crd.NewGatewaySaverSvc(f.Gateway, f.Timeout)
+		}
+	} else {
+		crdSvcConstructor = func() (crd.SaverSvc, error) {
+			return crd.NewKubeAPISaverSvc(f.Kubeconfig, f.KubeNamespace)
+		}
+	}
+
+	crdSaverSvc, err := crdSvcConstructor()
 	if err != nil {
-		p.Err(errors.Wrapf(err, "unable to create k8s resorce svc"))
+		p.Err(errors.Wrapf(err, "unable to create k8s resorce saver svc"))
 		return nil, CErrRetCode
 	}
 
