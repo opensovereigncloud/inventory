@@ -167,7 +167,10 @@ func (s *Svc) getType() (Type, error) {
 	//     return result
 	//   return result
 
-	dmiType := s.checkVMWithDMI()
+	dmiType, err := s.checkVMWithDMI()
+	if err != nil {
+		return "", errors.Wrapf(err, "unable to check for vm with dmi")
+	}
 	if dmiType == CTypeVMOracle {
 		return dmiType, nil
 	}
@@ -191,7 +194,7 @@ func (s *Svc) getType() (Type, error) {
 		return passType, nil
 	}
 
-	passType, err := s.checkVMWithCPUID()
+	passType, err = s.checkVMWithCPUID()
 	if err != nil {
 		return "", errors.Wrapf(err, "unable to check for cpuid")
 	}
@@ -270,8 +273,11 @@ func (s *Svc) getType() (Type, error) {
 	return passType, nil
 }
 
-func (s *Svc) checkVMWithDMI() Type {
-	dmiData, _ := s.dmiSvc.GetData()
+func (s *Svc) checkVMWithDMI() (Type, error) {
+	dmiData, err := s.dmiSvc.GetData()
+	if dmiData == nil {
+		return CTypeNone, errors.Wrapf(err, "unable to get valid dmiData")
+	}
 
 	vendorLocators := []string{
 		dmiData.SystemInformation.ProductName,
@@ -285,12 +291,12 @@ func (s *Svc) checkVMWithDMI() Type {
 	for _, vendorLocator := range vendorLocators {
 		for k, v := range CDMIVendorPrefixes {
 			if strings.HasPrefix(vendorLocator, k) {
-				return v
+				return v, nil
 			}
 		}
 	}
 
-	return CTypeNone
+	return CTypeNone, nil
 }
 
 func (s *Svc) checkVMWithCPUInfo() Type {

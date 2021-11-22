@@ -9,6 +9,7 @@ import (
 	"github.com/onmetal/inventory/pkg/ipmi"
 	"github.com/onmetal/inventory/pkg/lldp"
 	"github.com/onmetal/inventory/pkg/mem"
+	"github.com/onmetal/inventory/pkg/mlc"
 	"github.com/onmetal/inventory/pkg/netlink"
 	"github.com/onmetal/inventory/pkg/nic"
 	"github.com/onmetal/inventory/pkg/numa"
@@ -51,6 +52,12 @@ func WithCPU(cpuInfoSvc *cpu.InfoSvc) Option {
 func WithMem(memInfoSvc *mem.InfoSvc) Option {
 	return func(svc *Svc) {
 		svc.memInfoSvc = memInfoSvc
+	}
+}
+
+func WithMLCPerf(mlcPerfSvc *mlc.PerfSvc) Option {
+	return func(svc *Svc) {
+		svc.mlcPerfSvc = mlcPerfSvc
 	}
 }
 

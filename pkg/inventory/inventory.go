@@ -9,6 +9,7 @@ import (
 	"github.com/onmetal/inventory/pkg/ipmi"
 	"github.com/onmetal/inventory/pkg/lldp/frame"
 	"github.com/onmetal/inventory/pkg/mem"
+	"github.com/onmetal/inventory/pkg/mlc"
 	"github.com/onmetal/inventory/pkg/netlink"
 	"github.com/onmetal/inventory/pkg/nic"
 	"github.com/onmetal/inventory/pkg/numa"
@@ -19,6 +20,7 @@ import (
 type Inventory struct {
 	DMI            *dmi.DMI
 	MemInfo        *mem.Info
+	MlcPerf        *mlc.Perf
 	CPUInfo        []cpu.Info
 	NumaNodes      []numa.Node
 	BlockDevices   []block.Device

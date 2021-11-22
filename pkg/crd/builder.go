@@ -197,6 +197,10 @@ func (s *BuilderSvc) SetMemory(cr *apiv1alpha1.Inventory, inv *inventory.Invento
 	}
 }
 
+func (s *BuilderSvc) SetMLCPerf(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+	// TODO set data to inventory when CRD will get perf fields
+}
+
 func (s *BuilderSvc) SetCPUs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	if len(inv.CPUInfo) == 0 {
 		return

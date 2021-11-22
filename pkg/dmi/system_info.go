@@ -64,10 +64,10 @@ func SystemInformationFromSpec20(ref *SystemInformationRefSpec20, strings []stri
 	// Reducing all values by one since structure contains element number
 	// and we need an element index for the array
 	info := &SystemInformation{
-		Manufacturer: strings[ref.Manufacturer-1],
-		ProductName:  strings[ref.ProductName-1],
-		Version:      strings[ref.Version-1],
-		SerialNumber: strings[ref.SerialNumber-1],
+		Manufacturer: emptyStringOrValue(ref.Manufacturer, strings),
+		ProductName:  emptyStringOrValue(ref.ProductName, strings),
+		Version:      emptyStringOrValue(ref.Version, strings),
+		SerialNumber: emptyStringOrValue(ref.SerialNumber, strings),
 	}
 
 	return info
@@ -107,4 +107,13 @@ func swapBytesInSlice(slice []byte, a int, b int) {
 	tmp := slice[a]
 	slice[a] = slice[b]
 	slice[b] = tmp
+}
+
+func emptyStringOrValue(index byte, strings []string) string {
+	if index == byte(0) || int(index) > len(strings) {
+		str := ""
+		return str
+	} else {
+		return strings[index-1]
+	}
 }
