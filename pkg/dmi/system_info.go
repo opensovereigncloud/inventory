@@ -60,15 +60,6 @@ type SystemInformation struct {
 	Family       string
 }
 
-func emptyStringOrValue(index byte, strings []string) string {
-	if index == byte(0) || int(index) > len(strings) {
-		str := ""
-		return str
-	} else {
-		return strings[index-1]
-	}
-}
-
 func SystemInformationFromSpec20(ref *SystemInformationRefSpec20, strings []string) *SystemInformation {
 	// Reducing all values by one since structure contains element number
 	// and we need an element index for the array
@@ -116,4 +107,13 @@ func swapBytesInSlice(slice []byte, a int, b int) {
 	tmp := slice[a]
 	slice[a] = slice[b]
 	slice[b] = tmp
+}
+
+func emptyStringOrValue(index byte, strings []string) string {
+	if index == byte(0) || int(index) > len(strings) {
+		str := ""
+		return str
+	} else {
+		return strings[index-1]
+	}
 }

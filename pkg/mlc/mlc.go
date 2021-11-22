@@ -1,4 +1,4 @@
-package mlcPerf
+package mlc
 
 import (
 	"github.com/pkg/errors"

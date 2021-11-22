@@ -3,14 +3,14 @@ package main
 import (
 	"os"
 
-	"github.com/onmetal/inventory/pkg/benchmark"
+	"github.com/onmetal/inventory/pkg/app"
 )
 
 func main() {
-	is, ret := benchmark.NewSvc()
+	appInstance, ret := app.NewBenchmarkApp()
 	if ret != 0 {
 		os.Exit(ret)
 	}
-	ret = is.Gather()
+	ret = appInstance.Run()
 	os.Exit(ret)
 }

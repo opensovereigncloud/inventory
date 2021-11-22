@@ -20,7 +20,7 @@ import (
 type Inventory struct {
 	DMI            *dmi.DMI
 	MemInfo        *mem.Info
-	MlcPerf        *mlcPerf.Perf
+	MlcPerf        *mlc.Perf
 	CPUInfo        []cpu.Info
 	NumaNodes      []numa.Node
 	BlockDevices   []block.Device

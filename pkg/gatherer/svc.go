@@ -1,6 +1,7 @@
 package gatherer
 
 import (
+	"github.com/onmetal/inventory/pkg/mlc"
 	"github.com/pkg/errors"
 
 	"github.com/onmetal/inventory/pkg/block"
@@ -29,6 +30,7 @@ type Svc struct {
 	pciSvc     *pci.Svc
 	cpuInfoSvc *cpu.InfoSvc
 	memInfoSvc *mem.InfoSvc
+	mlcPerfSvc *mlc.PerfSvc
 	lldpSvc    *lldp.Svc
 	nicSvc     *nic.Svc
 	ipmiSvc    *ipmi.Svc
@@ -55,6 +57,10 @@ func (s *Svc) Gather() *inventory.Inventory {
 		s.SetDMI,
 		s.SetCPUInfo,
 		s.SetMemInfo,
+		// TODO Not gathering atm on regular run
+		// mlc binary is not included as a dependency yet
+		// Uncomment if dependency is met and benchmarking is required on regular run
+		// s.SetMlcPerf,
 		s.SetNumaNodes,
 		s.SetBlockDevices,
 		s.SetPCIBusDevices,
@@ -107,6 +113,15 @@ func (s *Svc) SetMemInfo(inv *inventory.Inventory) error {
 		return errors.Wrap(err, "unable to get proc data")
 	}
 	inv.MemInfo = data
+	return nil
+}
+
+func (s *Svc) SetMlcPerf(inv *inventory.Inventory) error {
+	data, err := s.mlcPerfSvc.GetInfo()
+	if err != nil {
+		return errors.Wrap(err, "unable to get mlc data")
+	}
+	inv.MlcPerf = data
 	return nil
 }
 

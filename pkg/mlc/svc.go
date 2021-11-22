@@ -1,4 +1,4 @@
-package mlcPerf
+package mlc
 
 import (
 	"bufio"
