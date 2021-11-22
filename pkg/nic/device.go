@@ -104,6 +104,7 @@ type Device struct {
 	InterfaceLink       uint32
 	LinkMode            LinkMode
 	MTU                 uint16
+	NameAssignType      NameAssignType
 	NetDevGroup         int
 	OperationalState    string
 	PhysicalPortID      string
@@ -113,6 +114,8 @@ type Device struct {
 	Testing             bool
 	TransmitQueueLength uint32
 	Type                Type
+	Lanes               uint8
+	FEC                 string
 }
 
 func (n *Device) defPCIAddress(thePath string) error {
@@ -371,7 +374,7 @@ func (n *Device) defNameAssignType(thePath string) error {
 	if fileVal < 0 || fileVal >= len(CNameAssignTypes) {
 		return errors.Errorf("unexpected value %d for name assign type", fileVal)
 	}
-	n.LinkMode = CLinkModes[fileVal]
+	n.NameAssignType = CNameAssignTypes[fileVal]
 
 	return nil
 }

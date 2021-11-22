@@ -7,14 +7,16 @@ import (
 	"k8s.io/client-go/util/homedir"
 )
 
-type Flags struct {
+type InventoryFlags struct {
 	Verbose       bool
 	Root          string
 	Kubeconfig    string
 	KubeNamespace string
+	Gateway       string
+	Timeout       string
 }
 
-func NewFlags() *Flags {
+func NewInventoryFlags() *InventoryFlags {
 	var kubeconfigDefaultPath string
 
 	if home := homedir.HomeDir(); home != "" {
@@ -25,12 +27,16 @@ func NewFlags() *Flags {
 	root := pflag.StringP("root", "r", "/", "path to root file system")
 	kubeconfig := pflag.StringP("kubeconfig", "k", kubeconfigDefaultPath, "path to kubeconfig")
 	kubeNamespace := pflag.StringP("namespace", "n", "default", "k8s namespace")
+	gateway := pflag.StringP("gateway", "g", "", "gateway address")
+	timeout := pflag.StringP("timeout", "t", "30s", "request timeout, if gateway is used")
 	pflag.Parse()
 
-	return &Flags{
+	return &InventoryFlags{
 		Verbose:       *verbose,
 		Root:          *root,
 		Kubeconfig:    *kubeconfig,
 		KubeNamespace: *kubeNamespace,
+		Gateway:       *gateway,
+		Timeout:       *timeout,
 	}
 }

@@ -1,4 +1,4 @@
-package lldp
+package frame
 
 type Capability string
 

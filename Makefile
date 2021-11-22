@@ -1,5 +1,6 @@
-BIN_NAME_INVENTORY = "inventory"
-BIN_NAME_BENCHMARK = "benchmark"
+INVENTORY_BIN_NAME = "inventory"
+LLDP_UPDATE_BIN_NAME = "nic-updater"
+BENCHMARK_BIN_NAME = "benchmark"
 
 DOCKER_REGISTRY = "localhost:5000"
 DOCKER_IMAGE_NAME = "inventory"
@@ -12,8 +13,9 @@ all: compile
 
 .PHONY: compile
 compile: fmt vet
-	go build -o dist/$(BIN_NAME_INVENTORY) cmd/inventory/main.go
-	go build -o dist/$(BIN_NAME_BENCHMARK) cmd/benchmark/main.go
+	for BIN_NAME in $(INVENTORY_BIN_NAME) $(LLDP_UPDATE_BIN_NAME) $(BENCHMARK_BIN_NAME); do \
+		go build -o dist/$$BIN_NAME cmd/$$BIN_NAME/main.go; \
+	done
 	cp -rf res/ dist/
 
 .PHONY: fmt

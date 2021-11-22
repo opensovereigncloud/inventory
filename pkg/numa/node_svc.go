@@ -17,11 +17,9 @@ const (
 	CNodeDistancePath = "/distance"
 	CNodeMemInfo      = "/meminfo"
 
-	CDistanceTrimPattern = "\\D+"
-	CCPUListTrimPattern  = "[^0-9\\-,]"
+	CCPUListTrimPattern = "[^0-9\\-,]"
 )
 
-var CDistanceTrimRegexp = regexp.MustCompile(CDistanceTrimPattern)
 var CCPUListTrimRegexp = regexp.MustCompile(CCPUListTrimPattern)
 
 type NodeSvc struct {
@@ -44,10 +42,14 @@ func (s *NodeSvc) GetNode(thePath string, nodeId int) (*Node, error) {
 	}
 
 	distanceString := string(distanceData)
-	distanceTrimmedString := CDistanceTrimRegexp.ReplaceAllString(distanceString, "")
-	distance, err := strconv.Atoi(distanceTrimmedString)
-	if err != nil {
-		return nil, errors.Wrapf(err, "unable to convert distance string %s (original %s) to int", distanceTrimmedString, distanceString)
+	distanceStrings := strings.Fields(distanceString)
+	distances := make([]int, len(distanceStrings))
+	for i := range distances {
+		distance, err := strconv.Atoi(distanceStrings[i])
+		if err != nil {
+			return nil, errors.Wrapf(err, "unable to convert distance string %s (from %s) to int", distanceStrings[i], distanceString)
+		}
+		distances[i] = distance
 	}
 
 	cpuListPath := path.Join(thePath, CNodeCPUListPath)
@@ -101,10 +103,10 @@ func (s *NodeSvc) GetNode(thePath string, nodeId int) (*Node, error) {
 	}
 
 	return &Node{
-		ID:       nodeId,
-		Distance: distance,
-		CPUs:     cpuList,
-		Memory:   memInfo,
-		Stat:     stat,
+		ID:        nodeId,
+		Distances: distances,
+		CPUs:      cpuList,
+		Memory:    memInfo,
+		Stat:      stat,
 	}, nil
 }

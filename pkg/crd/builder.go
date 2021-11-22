@@ -1,87 +1,62 @@
 package crd
 
 import (
-	"context"
 	"sort"
 	"strconv"
 	"strings"
 
-	"github.com/google/uuid"
+	"github.com/onmetal/inventory/pkg/inventory"
+	"github.com/onmetal/inventory/pkg/lldp/frame"
+	"github.com/onmetal/inventory/pkg/netlink"
+	"github.com/onmetal/inventory/pkg/printer"
+	"github.com/onmetal/inventory/pkg/utils"
 	apiv1alpha1 "github.com/onmetal/k8s-inventory/api/v1alpha1"
-	clientv1alpha1 "github.com/onmetal/k8s-inventory/clientset/v1alpha1"
-	"github.com/pkg/errors"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/tools/clientcmd"
-
-	"github.com/onmetal/inventory/pkg/inventory"
-	"github.com/onmetal/inventory/pkg/lldp"
-	"github.com/onmetal/inventory/pkg/netlink"
-	"github.com/onmetal/inventory/pkg/utils"
 )
 
 const (
-	CMACAddressLabelPrefix = "machine.onmetal.de/mac-address-"
-	CSonicNamespace        = "switch.onmetal.de"
+	CLoopbackNICPrefix = "lo"
+	CDockerNICPrefix   = "docker"
 )
 
-type Svc struct {
-	client clientv1alpha1.InventoryInterface
+var CNICPrefixesToExclude = []string{
+	CLoopbackNICPrefix,
+	CDockerNICPrefix,
 }
 
-func NewSvc(kubeconfig string, namespace string) (*Svc, error) {
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
-	if err != nil {
-		return nil, errors.Wrapf(err, "unable to read kubeconfig from path %s", kubeconfig)
-	}
-
-	if err := apiv1alpha1.AddToScheme(scheme.Scheme); err != nil {
-		return nil, errors.Wrap(err, "unable to add registered types to client scheme")
-	}
-
-	clientset, err := clientv1alpha1.NewForConfig(config)
-	if err != nil {
-		return nil, errors.Wrap(err, "unable to build clientset from config")
-	}
-
-	client := clientset.Inventories(namespace)
-
-	return &Svc{
-		client: client,
-	}, nil
+type BuilderSvc struct {
+	printer *printer.Svc
 }
 
-func (s *Svc) BuildAndSave(inv *inventory.Inventory) error {
-	cr, err := s.Build(inv)
-	if err != nil {
-		return errors.Wrap(err, "unable to build inventory resource manifest")
+func NewBuilderSvc(printer *printer.Svc) *BuilderSvc {
+	return &BuilderSvc{
+		printer: printer,
 	}
-
-	if err := s.Save(cr); err != nil {
-		return errors.Wrap(err, "unable to save inventory resource")
-	}
-
-	return nil
 }
 
-func (s *Svc) Build(inv *inventory.Inventory) (*apiv1alpha1.Inventory, error) {
+func (s *BuilderSvc) Build(inv *inventory.Inventory) (*apiv1alpha1.Inventory, error) {
+	setters := []func(*apiv1alpha1.Inventory, *inventory.Inventory){
+		s.SetSystem,
+		s.SetIPMIs,
+		s.SetBlocks,
+		s.SetMemory,
+		s.SetCPUs,
+		s.SetNUMANodes,
+		s.SetPCIDevices,
+		s.SetNICs,
+		s.SetVirt,
+		s.SetHost,
+		s.SetDistro,
+	}
+
+	return s.BuildInOrder(inv, setters)
+}
+
+func (s *BuilderSvc) BuildInOrder(inv *inventory.Inventory, setters []func(*apiv1alpha1.Inventory, *inventory.Inventory)) (*apiv1alpha1.Inventory, error) {
 	cr := &apiv1alpha1.Inventory{
 		ObjectMeta: metav1.ObjectMeta{},
 		Spec:       apiv1alpha1.InventorySpec{},
-	}
-
-	setters := []func(*apiv1alpha1.Inventory, *inventory.Inventory){
-		s.setSystem,
-		s.setIPMIs,
-		s.setBlocks,
-		s.setMemory,
-		s.setCPUs,
-		s.setNICs,
-		s.setVirt,
-		s.setHost,
-		s.setDistro,
 	}
 
 	for _, setter := range setters {
@@ -91,38 +66,7 @@ func (s *Svc) Build(inv *inventory.Inventory) (*apiv1alpha1.Inventory, error) {
 	return cr, nil
 }
 
-func (s *Svc) Save(inv *apiv1alpha1.Inventory) error {
-	_, err := s.client.Create(context.Background(), inv, metav1.CreateOptions{})
-	if err == nil {
-		return nil
-	}
-	if !apierrors.IsAlreadyExists(err) {
-		return errors.Wrap(err, "unhandled error on creation")
-	}
-
-	existing, err := s.client.Get(context.Background(), inv.Name, metav1.GetOptions{})
-	if err != nil {
-		return errors.Wrap(err, "unable to get resource")
-	}
-
-	existing.Spec = inv.Spec
-
-	if existing.Labels == nil {
-		existing.Labels = inv.Labels
-	} else {
-		for k, v := range inv.Labels {
-			existing.Labels[k] = v
-		}
-	}
-
-	if _, err := s.client.Update(context.Background(), existing, metav1.UpdateOptions{}); err != nil {
-		return errors.Wrap(err, "unhandled error on update")
-	}
-
-	return nil
-}
-
-func (s *Svc) setSystem(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+func (s *BuilderSvc) SetSystem(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	if inv.DMI == nil {
 		return
 	}
@@ -152,7 +96,7 @@ func (s *Svc) setSystem(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	}
 }
 
-func (s *Svc) setIPMIs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+func (s *BuilderSvc) SetIPMIs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	ipmiDevCount := len(inv.IPMIDevices)
 	if ipmiDevCount == 0 {
 		return
@@ -178,7 +122,7 @@ func (s *Svc) setIPMIs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	cr.Spec.IPMIs = ipmis
 }
 
-func (s *Svc) setBlocks(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+func (s *BuilderSvc) SetBlocks(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	if len(inv.BlockDevices) == 0 {
 		return
 	}
@@ -240,14 +184,10 @@ func (s *Svc) setBlocks(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 		return blocks[i].Name < blocks[j].Name
 	})
 
-	cr.Spec.Blocks = &apiv1alpha1.BlockTotalSpec{
-		Count:    uint64(len(blocks)),
-		Capacity: capacity,
-		Blocks:   blocks,
-	}
+	cr.Spec.Blocks = blocks
 }
 
-func (s *Svc) setMemory(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+func (s *BuilderSvc) SetMemory(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	if inv.MemInfo == nil {
 		return
 	}
@@ -257,14 +197,12 @@ func (s *Svc) setMemory(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	}
 }
 
-func (s *Svc) setCPUs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+func (s *BuilderSvc) SetCPUs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	if len(inv.CPUInfo) == 0 {
 		return
 	}
 
-	cpuTotal := &apiv1alpha1.CPUTotalSpec{}
-
-	cpuMarkMap := make(map[uint64]apiv1alpha1.CPUSpec, 0)
+	cpuMarkMap := make(map[uint64]apiv1alpha1.CPUSpec)
 
 	for _, cpuInfo := range inv.CPUInfo {
 		if val, ok := cpuMarkMap[cpuInfo.PhysicalID]; ok {
@@ -272,10 +210,6 @@ func (s *Svc) setCPUs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 			cpuMarkMap[cpuInfo.PhysicalID] = val
 			continue
 		}
-
-		cpuTotal.Sockets += 1
-		cpuTotal.Cores += cpuInfo.CpuCores
-		cpuTotal.Threads += cpuInfo.Siblings
 
 		cpu := apiv1alpha1.CPUSpec{
 			PhysicalID:      cpuInfo.PhysicalID,
@@ -322,12 +256,102 @@ func (s *Svc) setCPUs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 		return cpus[i].PhysicalID < cpus[j].PhysicalID
 	})
 
-	cpuTotal.CPUs = cpus
-
-	cr.Spec.CPUs = cpuTotal
+	cr.Spec.CPUs = cpus
 }
 
-func (s *Svc) setNICs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+func (s *BuilderSvc) SetNUMANodes(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+	if len(inv.NumaNodes) == 0 {
+		return
+	}
+
+	numaNodes := make([]apiv1alpha1.NumaSpec, len(inv.NumaNodes))
+	for idx, numaNode := range inv.NumaNodes {
+		numaNodes[idx] = apiv1alpha1.NumaSpec{
+			ID:        numaNode.ID,
+			CPUs:      numaNode.CPUs,
+			Distances: numaNode.Distances,
+		}
+		if numaNode.Memory != nil {
+			numaNodes[idx].Memory = &apiv1alpha1.MemorySpec{
+				Total: numaNode.Memory.MemTotal,
+			}
+		}
+	}
+
+	sort.Slice(numaNodes, func(i, j int) bool {
+		return numaNodes[i].ID < numaNodes[j].ID
+	})
+
+	cr.Spec.NUMA = numaNodes
+}
+
+func (s *BuilderSvc) SetPCIDevices(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+	if len(inv.PCIBusDevices) == 0 {
+		return
+	}
+
+	pciDevices := make([]apiv1alpha1.PCIDeviceSpec, 0)
+	for _, pciBus := range inv.PCIBusDevices {
+		for _, pciDevice := range pciBus.Devices {
+			pciDeviceSpec := apiv1alpha1.PCIDeviceSpec{
+				BusID:   pciBus.ID,
+				Address: pciDevice.Address,
+			}
+			if pciDevice.Vendor != nil {
+				pciDeviceSpec.Vendor = &apiv1alpha1.PCIDeviceDescriptionSpec{
+					ID:   pciDevice.Vendor.ID,
+					Name: pciDevice.Vendor.Name,
+				}
+			}
+			if pciDevice.Subvendor != nil {
+				pciDeviceSpec.Subvendor = &apiv1alpha1.PCIDeviceDescriptionSpec{
+					ID:   pciDevice.Subvendor.ID,
+					Name: pciDevice.Subvendor.Name,
+				}
+			}
+			if pciDevice.Type != nil {
+				pciDeviceSpec.Type = &apiv1alpha1.PCIDeviceDescriptionSpec{
+					ID:   pciDevice.Type.ID,
+					Name: pciDevice.Type.Name,
+				}
+			}
+			if pciDevice.Subtype != nil {
+				pciDeviceSpec.Subtype = &apiv1alpha1.PCIDeviceDescriptionSpec{
+					ID:   pciDevice.Subtype.ID,
+					Name: pciDevice.Subtype.Name,
+				}
+			}
+			if pciDevice.Class != nil {
+				pciDeviceSpec.Class = &apiv1alpha1.PCIDeviceDescriptionSpec{
+					ID:   pciDevice.Class.ID,
+					Name: pciDevice.Class.Name,
+				}
+			}
+			if pciDevice.Subclass != nil {
+				pciDeviceSpec.Subclass = &apiv1alpha1.PCIDeviceDescriptionSpec{
+					ID:   pciDevice.Subclass.ID,
+					Name: pciDevice.Subclass.Name,
+				}
+			}
+			if pciDevice.ProgrammingInterface != nil {
+				pciDeviceSpec.ProgrammingInterface = &apiv1alpha1.PCIDeviceDescriptionSpec{
+					ID:   pciDevice.ProgrammingInterface.ID,
+					Name: pciDevice.ProgrammingInterface.Name,
+				}
+			}
+
+			pciDevices = append(pciDevices, pciDeviceSpec)
+		}
+	}
+
+	sort.Slice(pciDevices, func(i, j int) bool {
+		return pciDevices[i].Address < pciDevices[j].Address
+	})
+
+	cr.Spec.PCIDevices = pciDevices
+}
+
+func (s *BuilderSvc) SetNICs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	if len(inv.NICs) == 0 {
 		return
 	}
@@ -337,10 +361,10 @@ func (s *Svc) setNICs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	}
 
 	lldpMap := make(map[int][]apiv1alpha1.LLDPSpec)
-	for _, frame := range inv.LLDPFrames {
-		checkMap := make(map[lldp.Capability]struct{})
+	for _, f := range inv.LLDPFrames {
+		checkMap := make(map[frame.Capability]struct{})
 		enabledCapabilities := make([]apiv1alpha1.LLDPCapabilities, 0)
-		for _, capability := range frame.EnabledCapabilities {
+		for _, capability := range f.EnabledCapabilities {
 			if _, ok := checkMap[capability]; !ok {
 				enabledCapabilities = append(enabledCapabilities, apiv1alpha1.LLDPCapabilities(capability))
 				checkMap[capability] = struct{}{}
@@ -349,18 +373,18 @@ func (s *Svc) setNICs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 		sort.Slice(enabledCapabilities, func(i, j int) bool {
 			return enabledCapabilities[i] < enabledCapabilities[j]
 		})
-		id, _ := strconv.Atoi(frame.InterfaceID)
+		id, _ := strconv.Atoi(f.InterfaceID)
 		l := apiv1alpha1.LLDPSpec{
-			ChassisID:         frame.ChassisID,
-			SystemName:        frame.SystemName,
-			SystemDescription: frame.SystemDescription,
-			PortID:            frame.PortID,
-			PortDescription:   frame.PortDescription,
+			ChassisID:         f.ChassisID,
+			SystemName:        f.SystemName,
+			SystemDescription: f.SystemDescription,
+			PortID:            f.PortID,
+			PortDescription:   f.PortDescription,
 			Capabilities:      enabledCapabilities,
 		}
 
 		if _, ok := lldpMap[id]; !ok {
-			lldpMap[id] = make([]apiv1alpha1.LLDPSpec, 1)
+			lldpMap[id] = make([]apiv1alpha1.LLDPSpec, 0)
 		}
 
 		lldpMap[id] = append(lldpMap[id], l)
@@ -380,19 +404,28 @@ func (s *Svc) setNICs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 		}
 
 		if _, ok := ndpMap[ndp.DeviceIndex]; !ok {
-			ndpMap[ndp.DeviceIndex] = make([]apiv1alpha1.NDPSpec, 1)
+			ndpMap[ndp.DeviceIndex] = make([]apiv1alpha1.NDPSpec, 0)
 		}
 
 		ndpMap[ndp.DeviceIndex] = append(ndpMap[ndp.DeviceIndex], n)
 	}
 
-	labels := cr.GetLabels()
-	if labels == nil {
-		labels = make(map[string]string)
-	}
-
 	nics := make([]apiv1alpha1.NICSpec, 0)
 	for _, nic := range inv.NICs {
+		// it was reported that loopback and docker interfaces on some systems may have
+		// PCI address assigned (but they have weird format), so we need to exclude them too
+		shouldExclude := false
+		for _, prefix := range CNICPrefixesToExclude {
+			if strings.HasPrefix(nic.Name, prefix) {
+				shouldExclude = true
+				break
+			}
+		}
+
+		if shouldExclude {
+			continue
+		}
+
 		// filter non-physical interfaces according to type of inventorying host
 		if inv.Host.Type == utils.CSwitchType {
 			if nic.PCIAddress == "" && !strings.HasPrefix(nic.Name, "Ethernet") {
@@ -425,28 +458,21 @@ func (s *Svc) setNICs(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 			Speed:      nic.Speed,
 			LLDPs:      lldps,
 			NDPs:       ndps,
+			ActiveFEC:  nic.FEC,
+			Lanes:      nic.Lanes,
 		}
-
-		// Due to k8s validation which allows labels to consist of alphanumeric characters, '-', '_' or '.' need to replace
-		// colons in nic's MAC address
-		labels[CMACAddressLabelPrefix+strings.ReplaceAll(nic.Address, ":", "")] = ""
 
 		nics = append(nics, ns)
 	}
-
-	cr.SetLabels(labels)
 
 	sort.Slice(nics, func(i, j int) bool {
 		return nics[i].Name < nics[j].Name
 	})
 
-	cr.Spec.NICs = &apiv1alpha1.NICTotalSpec{
-		Count: uint64(len(nics)),
-		NICs:  nics,
-	}
+	cr.Spec.NICs = nics
 }
 
-func (s *Svc) setVirt(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+func (s *BuilderSvc) SetVirt(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	if inv.Virtualization == nil {
 		return
 	}
@@ -456,7 +482,7 @@ func (s *Svc) setVirt(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	}
 }
 
-func (s *Svc) setHost(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+func (s *BuilderSvc) SetHost(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	if inv.Host == nil {
 		return
 	}
@@ -466,7 +492,7 @@ func (s *Svc) setHost(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	}
 }
 
-func (s *Svc) setDistro(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
+func (s *BuilderSvc) SetDistro(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 	if inv.Distro == nil {
 		return
 	}
@@ -480,10 +506,4 @@ func (s *Svc) setDistro(cr *apiv1alpha1.Inventory, inv *inventory.Inventory) {
 		BuildNumber:   inv.Distro.BuildNumber,
 		BuildBy:       inv.Distro.BuildBy,
 	}
-}
-
-func getUUID(namespace string, identifier string) string {
-	namespaceUUID := uuid.NewMD5(uuid.UUID{}, []byte(namespace))
-	newUUID := uuid.NewMD5(namespaceUUID, []byte(identifier))
-	return newUUID.String()
 }

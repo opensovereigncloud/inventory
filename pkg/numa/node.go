@@ -5,9 +5,9 @@ import (
 )
 
 type Node struct {
-	ID       int
-	CPUs     []int
-	Distance int
-	Memory   *mem.Info
-	Stat     *Stat
+	ID        int
+	CPUs      []int
+	Distances []int
+	Memory    *mem.Info
+	Stat      *Stat
 }

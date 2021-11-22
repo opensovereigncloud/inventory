@@ -331,7 +331,7 @@ func (s *Svc) checkVMWithCPUID() (Type, error) {
 		}
 	}
 
-	text := string(buf.Bytes())
+	text := buf.String()
 
 	for k, v := range CCPUIDVMStrings {
 		if strings.HasPrefix(text, k) {

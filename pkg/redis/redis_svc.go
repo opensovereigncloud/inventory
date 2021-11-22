@@ -1,4 +1,4 @@
-package lldp
+package redis
 
 import (
 	"context"
@@ -11,10 +11,12 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/onmetal/inventory/pkg/file"
+	"github.com/onmetal/inventory/pkg/lldp/frame"
 )
 
 const (
 	CLLDPEntryKeyMask = "LLDP_ENTRY*"
+	CPortEntryPrefix  = "PORT_TABLE:"
 	CClassNetPath     = "/sys/class/net/"
 	CIndexFile        = "ifindex"
 )
@@ -30,6 +32,12 @@ const (
 	CLLDPRemoteManagementAddresses   = "lldp_rem_man_addr"
 )
 
+const (
+	CPortLanes = "lanes"
+	CPortFec   = "fec"
+	CPortSpeed = "speed"
+)
+
 var CRedisLLDPFields = []string{
 	CLLDPRemoteChassisId,
 	CLLDPRemoteSystemName,
@@ -41,14 +49,20 @@ var CRedisLLDPFields = []string{
 	CLLDPRemoteManagementAddresses,
 }
 
-type RedisSvc struct {
+var CRedisPortFields = []string{
+	CPortLanes,
+	CPortFec,
+	CPortSpeed,
+}
+
+type Svc struct {
 	client    *redis.Client
 	ctx       context.Context
 	indexPath string
 }
 
-func NewRedisSvc(basePath string) *RedisSvc {
-	return &RedisSvc{
+func NewRedisSvc(basePath string) *Svc {
+	return &Svc{
 		client: redis.NewClient(&redis.Options{
 			Addr:     "localhost:6379",
 			Password: "", // no password set
@@ -59,23 +73,39 @@ func NewRedisSvc(basePath string) *RedisSvc {
 	}
 }
 
-func (s *RedisSvc) GetFrames() ([]Frame, error) {
-	frames := make([]Frame, 0)
-	lldpKeys, err := s.GetKeysByPattern(CLLDPEntryKeyMask)
+func (s *Svc) GetFrames() ([]frame.Frame, error) {
+	frames := make([]frame.Frame, 0)
+	lldpKeys, err := s.getKeysByPattern(CLLDPEntryKeyMask)
 	if err != nil {
 		return nil, err
 	}
 	for _, key := range lldpKeys {
-		frame, err := s.processRedisPortData(key)
+		f, err := s.processRedisPortData(key)
 		if err != nil {
 			return nil, err
 		}
-		frames = append(frames, *frame)
+		frames = append(frames, *f)
 	}
 	return frames, nil
 }
 
-func (s *RedisSvc) GetKeysByPattern(pattern string) ([]string, error) {
+func (s *Svc) GetPortAdditionalInfo(name string) (map[string]string, error) {
+	result := map[string]string{CPortLanes: "", CPortFec: ""}
+	key := CPortEntryPrefix + name
+	for _, f := range CRedisPortFields {
+		val, err := s.client.Do(s.ctx, "HGET", key, f).Result()
+		if err != nil {
+			if err == redis.Nil {
+				continue
+			}
+			return nil, errors.Wrap(err, "failed to get value")
+		}
+		result[f] = val.(string)
+	}
+	return result, nil
+}
+
+func (s *Svc) getKeysByPattern(pattern string) ([]string, error) {
 	val, err := s.client.Keys(s.ctx, pattern).Result()
 	if err != nil {
 		return nil, err
@@ -83,7 +113,7 @@ func (s *RedisSvc) GetKeysByPattern(pattern string) ([]string, error) {
 	return val, nil
 }
 
-func (s *RedisSvc) GetValuesFromHashEntry(key string, fields *[]string) (map[string]string, error) {
+func (s *Svc) getValuesFromHashEntry(key string, fields *[]string) (map[string]string, error) {
 	result := make(map[string]string)
 	for _, f := range *fields {
 		val, err := s.client.Do(s.ctx, "HGET", key, f).Result()
@@ -99,14 +129,14 @@ func (s *RedisSvc) GetValuesFromHashEntry(key string, fields *[]string) (map[str
 	return result, nil
 }
 
-func (s *RedisSvc) processRedisPortData(key string) (*Frame, error) {
+func (s *Svc) processRedisPortData(key string) (*frame.Frame, error) {
 	port := strings.Split(key, ":")
 	filePath := path.Join(s.indexPath, port[1], CIndexFile)
 	fileVal, err := file.ToString(filePath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "unable to get interface index value from %s", filePath)
 	}
-	rawData, err := s.GetValuesFromHashEntry(key, &CRedisLLDPFields)
+	rawData, err := s.getValuesFromHashEntry(key, &CRedisLLDPFields)
 	if err != nil {
 		return nil, errors.Wrapf(err, "unable to collect LLDP info for interface %s", port[1])
 	}
@@ -119,7 +149,7 @@ func (s *RedisSvc) processRedisPortData(key string) (*Frame, error) {
 		return nil, errors.Wrap(err, "unable to decode enabled capabilities for remote interface")
 	}
 
-	frame := &Frame{
+	f := &frame.Frame{
 		InterfaceID:         fileVal,
 		ChassisID:           rawData[CLLDPRemoteChassisId],
 		SystemName:          rawData[CLLDPRemoteSystemName],
@@ -131,7 +161,7 @@ func (s *RedisSvc) processRedisPortData(key string) (*Frame, error) {
 		ManagementAddresses: strings.Split(rawData[CLLDPRemoteManagementAddresses], ","),
 		TTL:                 0,
 	}
-	return frame, nil
+	return f, nil
 }
 
 func getBitsList(num uint8) []int {
@@ -146,8 +176,8 @@ func getBitsList(num uint8) []int {
 	return bitsList
 }
 
-func getCapabilities(caps string) ([]Capability, error) {
-	capabilities := make([]Capability, 0)
+func getCapabilities(caps string) ([]frame.Capability, error) {
+	capabilities := make([]frame.Capability, 0)
 	for _, i := range strings.Split(caps, " ") {
 		if i == "00" || i == "" {
 			continue
@@ -155,7 +185,7 @@ func getCapabilities(caps string) ([]Capability, error) {
 		if parsed, err := strconv.ParseUint(i, 16, 8); err == nil {
 			bitsList := getBitsList(uint8(parsed))
 			for _, v := range bitsList {
-				capabilities = append(capabilities, CCapabilities[v])
+				capabilities = append(capabilities, frame.CCapabilities[v])
 			}
 		} else {
 			return nil, err
