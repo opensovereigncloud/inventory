@@ -6,6 +6,7 @@ then pushes it to the k8s cluster in a form of custom resource.
 Currently, following tools are provided:
 - `inventory` - collects data about system hardware;
 - `nic-updater` - collects only NIC data (LLDP and NDP), in order to keep it up to date.
+- `benchmark` - collects info from Intel® Memory Latency Checker.
 
 ## Getting started
 
@@ -43,7 +44,7 @@ To remove built distribution directory run
 
 ### Flags
 
-Following configuration parameters are available for both binaries
+Following configuration parameters are available for all binaries
 
 - `-k, --kubeconfig`
   
