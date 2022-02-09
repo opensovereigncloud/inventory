@@ -17,7 +17,7 @@ on:
 env:
   platforms: linux/amd64
   registry: core.harbor.onmetal.de
-  image: core.harbor.onmetal.de/onmetal/inventory-tool
+  image: core.harbor.onmetal.de/onmetal/inventory
 
 jobs:
   go-lint:
