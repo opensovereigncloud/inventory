@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	CSonicNamespace = "switch.onmetal.de"
+	CSonicNamespace = "onmetal.de"
 )
 
 type KubeAPISaverSvc struct {
