@@ -31,7 +31,7 @@ RUN git clone https://github.com/axboe/fio.git && \
 RUN git clone https://github.com/ColinIanKing/stress-ng.git && \
     cd stress-ng/ && \
     make clean && \
-  	STATIC=1 make && ls
+  	STATIC=1 make
 
 
 FROM amd64/busybox:1.35.0
