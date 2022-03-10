@@ -6,25 +6,25 @@ import (
 	"net/http"
 	"time"
 
-	apiv1alpha1 "github.com/onmetal/k8s-inventory/api/v1alpha1"
+	apiv1alpha1 "github.com/onmetal/metal-api/apis/inventory/v1alpha1"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/util/json"
 )
 
 const (
-	CSaveRequestURLTemplate  = "%s/apis/v1alpha1/inventory"
-	CPatchRequestURLTemplate = "%s/apis/v1v1alpha1/inventory/%s"
+	CSaveRequestURLTemplate  = "%s/apis/v1alpha1/inventory/%s"
+	CPatchRequestURLTemplate = "%s/apis/v1v1alpha1/inventory/%s/%s"
 
 	CContentTypeHeader  = "Content-Type"
 	CRequestContentType = "application/json"
 )
 
 type GatewaySaverSvc struct {
-	httpClient *http.Client
-	host       string
+	httpClient      *http.Client
+	host, namespace string
 }
 
-func NewGatewaySaverSvc(host string, timeout string) (SaverSvc, error) {
+func NewGatewaySaverSvc(host, namespace string, timeout string) (SaverSvc, error) {
 	timeoutDuration, err := time.ParseDuration(timeout)
 	if err != nil {
 		return nil, errors.Wrapf(err, "unable to parse string %s as duration", timeout)
@@ -34,12 +34,13 @@ func NewGatewaySaverSvc(host string, timeout string) (SaverSvc, error) {
 		httpClient: &http.Client{
 			Timeout: timeoutDuration,
 		},
-		host: host,
+		host:      host,
+		namespace: namespace,
 	}, nil
 }
 
 func (g GatewaySaverSvc) Save(inv *apiv1alpha1.Inventory) error {
-	url := fmt.Sprintf(CSaveRequestURLTemplate, g.host)
+	url := fmt.Sprintf(CSaveRequestURLTemplate, g.host, g.namespace)
 
 	body, err := json.Marshal(inv)
 	if err != nil {
@@ -62,7 +63,7 @@ func (g GatewaySaverSvc) Save(inv *apiv1alpha1.Inventory) error {
 }
 
 func (g GatewaySaverSvc) Patch(name string, patch interface{}) error {
-	url := fmt.Sprintf(CPatchRequestURLTemplate, g.host, name)
+	url := fmt.Sprintf(CPatchRequestURLTemplate, g.host, g.namespace, name)
 
 	body, err := json.Marshal(patch)
 	if err != nil {

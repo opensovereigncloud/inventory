@@ -13,7 +13,7 @@ import (
 	"github.com/onmetal/inventory/pkg/nic"
 	"github.com/onmetal/inventory/pkg/printer"
 	"github.com/onmetal/inventory/pkg/redis"
-	apiv1alpha1 "github.com/onmetal/k8s-inventory/api/v1alpha1"
+	apiv1alpha1 "github.com/onmetal/metal-api/apis/inventory/v1alpha1"
 	"github.com/pkg/errors"
 )
 
@@ -34,7 +34,7 @@ func NewNICUpdaterApp() (*NICUpdaterApp, int) {
 	var crdSvcConstructor func() (crd.SaverSvc, error)
 	if f.Gateway != "" {
 		crdSvcConstructor = func() (crd.SaverSvc, error) {
-			return crd.NewGatewaySaverSvc(f.Gateway, f.Timeout)
+			return crd.NewGatewaySaverSvc(f.Gateway, f.KubeNamespace, f.Timeout)
 		}
 	} else {
 		crdSvcConstructor = func() (crd.SaverSvc, error) {

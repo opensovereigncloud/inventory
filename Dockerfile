@@ -1,4 +1,4 @@
-FROM golang:1.15.6 as builder
+FROM golang:1.17 as builder
 
 ARG GOPRIVATE
 
@@ -15,19 +15,34 @@ RUN --mount=type=ssh --mount=type=secret,id=github_pat GITHUB_PAT_PATH=/run/secr
   && go mod download
 
 COPY cmd/ cmd/
+COPY internal/ internal/
 COPY pkg/ pkg/
 COPY res/ res/
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o bin/inventory cmd/inventory/main.go
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o bin/nic-updater cmd/nic-updater/main.go
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o bin/benchmark cmd/benchmark/main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o bin/benchmark-scheduler cmd/benchmark-scheduler/main.go
+RUN git clone https://github.com/axboe/fio.git && \
+    cd fio/ && \
+    ./configure --build-static && \
+    make && \
+    make install
+RUN git clone https://github.com/ColinIanKing/stress-ng.git && \
+    cd stress-ng/ && \
+    make clean && \
+  	STATIC=1 make && ls
 
-FROM busybox:1.32.0
+
+FROM amd64/busybox:1.35.0
 
 WORKDIR /app
+
 COPY --from=builder /build/bin/inventory .
 COPY --from=builder /build/bin/nic-updater .
 COPY --from=builder /build/bin/benchmark .
+COPY --from=builder /build/bin/benchmark-scheduler .
+COPY --from=builder /build/fio/fio /usr/local/bin/
+COPY --from=builder /build/stress-ng/stress-ng /usr/local/bin/
 COPY --from=builder /build/res/pci.ids ./res/
 
-ENTRYPOINT ["/app/inventory"]
