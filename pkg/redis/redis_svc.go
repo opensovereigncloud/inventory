@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	CRedisSockPath    = "/var/run/redis/redis.sock"
+	CRedisSockPath    = "/run/redis/redis.sock"
 	CLLDPEntryKeyMask = "LLDP_ENTRY*"
 	CPortEntryPrefix  = "PORT_TABLE:"
 	CClassNetPath     = "/sys/class/net/"
