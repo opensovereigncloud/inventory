@@ -15,6 +15,7 @@ import (
 )
 
 const (
+	CRedisSockPath    = "/var/run/redis/redis.sock"
 	CLLDPEntryKeyMask = "LLDP_ENTRY*"
 	CPortEntryPrefix  = "PORT_TABLE:"
 	CClassNetPath     = "/sys/class/net/"
@@ -64,7 +65,8 @@ type Svc struct {
 func NewRedisSvc(basePath string) *Svc {
 	return &Svc{
 		client: redis.NewClient(&redis.Options{
-			Addr:     "localhost:6379",
+			Network:  "unix",
+			Addr:     path.Join(basePath, CRedisSockPath),
 			Password: "", // no password set
 			DB:       0,  // use default DB
 		}),
