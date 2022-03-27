@@ -605,8 +605,8 @@ github.com/onmetal/k8s-inventory v0.0.1/go.mod h1:m+AgNTnUf0ch9uC0TB2XduBy41goS/
 github.com/onmetal/k8s-inventory v0.0.2-0.20211117172137-e7a07f43bd63 h1:7ApugrCAlBFLhhn+aHh4T6LAMWImHisSAM6uxcv7WEY=
 github.com/onmetal/k8s-inventory v0.0.2-0.20211117172137-e7a07f43bd63/go.mod h1:m+AgNTnUf0ch9uC0TB2XduBy41goS/1ifJg7dKYjTq8=
 github.com/onmetal/metal-api v0.2.1/go.mod h1:6AKXUrw7ulVhC3M4bqBCa/1V2CNw1Fc/q3NpX2HAATo=
-github.com/onmetal/metal-api v0.2.6 h1:qlVVQcDNyCXEO9zDVpWm2VXXUCP6mkeoYGrY6bzMyLs=
-github.com/onmetal/metal-api v0.2.6/go.mod h1:Jp0N9775V26st7AAZeYVoskhz09+UKzRNARzLlbR364=
+github.com/onmetal/metal-api v0.2.9 h1:Q5eyd2RaAc205rPCIduNiCi4kWNJe8oEhZCxhdlNvuo=
+github.com/onmetal/metal-api v0.2.9/go.mod h1:Jp0N9775V26st7AAZeYVoskhz09+UKzRNARzLlbR364=
 github.com/onmetal/metal-api-gateway v0.2.2 h1:2kz8yNyN3tnhjItDW32cqHpfJBW9b1MY9+M8BEb/+ZI=
 github.com/onmetal/metal-api-gateway v0.2.2/go.mod h1:2PzwHKAiiuVG5DP4ys5W6NKVbk4qgXjoNgKESS4Zcek=
 github.com/onmetal/netdata v0.0.0-20211008010303-71550b7b1004 h1:/nGEM5bDm6QrKrjeMFpMTdnVcZS0M25kpYs8baHZGOo=

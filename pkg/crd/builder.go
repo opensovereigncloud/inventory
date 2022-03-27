@@ -491,7 +491,6 @@ func (s *BuilderSvc) SetHost(cr *apiv1alpha1.Inventory, inv *inventory.Inventory
 		return
 	}
 	cr.Spec.Host = &apiv1alpha1.HostSpec{
-		Type: inv.Host.Type,
 		Name: inv.Host.Name,
 	}
 }
