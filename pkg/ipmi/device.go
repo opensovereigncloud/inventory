@@ -146,9 +146,9 @@ func (i *Device) defSetInProgress(conn *ipmi.IPMI) error {
 
 	if valIdx >= len(CSetInProgressStatuses) {
 		i.SetInProgress = CIPMISetInProgressUnknownStatus
+	} else {
+		i.SetInProgress = CSetInProgressStatuses[valIdx]
 	}
-
-	i.SetInProgress = CSetInProgressStatuses[valIdx]
 
 	return nil
 }
@@ -167,9 +167,9 @@ func (i *Device) defIPAddressSource(conn *ipmi.IPMI) error {
 
 	if valIdx >= len(CIPAddressSources) {
 		i.IPAddressSource = CIPMIIPAddressSourceOther
+	} else {
+		i.IPAddressSource = CIPAddressSources[valIdx]
 	}
-
-	i.IPAddressSource = CIPAddressSources[valIdx]
 
 	return nil
 }
