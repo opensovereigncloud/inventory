@@ -2,7 +2,9 @@ package redis
 
 import (
 	"context"
+	"encoding/json"
 	"math/bits"
+	"os"
 	"path"
 	"strconv"
 	"strings"
@@ -15,11 +17,13 @@ import (
 )
 
 const (
-	CRedisSockPath    = "/run/redis/redis.sock"
-	CLLDPEntryKeyMask = "LLDP_ENTRY*"
-	CPortEntryPrefix  = "PORT_TABLE:"
-	CClassNetPath     = "/sys/class/net/"
-	CIndexFile        = "ifindex"
+	CRedisDatabaseConfigFile = "/run/redis/sonic-db/database_config.json"
+	CLLDPEntryKeyMask        = "LLDP_ENTRY*"
+	CPortEntryPrefix         = "PORT_TABLE"
+	CClassNetPath            = "/sys/class/net/"
+	CIndexFile               = "ifindex"
+	CApplDB                  = "APPL_DB"
+	CConfigDB                = "CONFIG_DB"
 )
 
 const (
@@ -60,20 +64,60 @@ type Svc struct {
 	client    *redis.Client
 	ctx       context.Context
 	indexPath string
+	separator string
 }
 
-func NewRedisSvc(basePath, username, password string) *Svc {
+func NewRedisSvc(basePath string) (*Svc, error) {
+	sonicDBJson, err := os.ReadFile(path.Join(basePath, CRedisDatabaseConfigFile))
+	if err != nil {
+		return nil, err
+	}
+	sonicDBConfig := &DatabaseConfig{}
+	err = json.Unmarshal(sonicDBJson, sonicDBConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	applDB, ok := sonicDBConfig.Databases[CApplDB]
+	if !ok {
+		return nil, errors.New("Can not get APPL_DB from database config")
+	}
+
+	instance, ok := sonicDBConfig.Instances[applDB.Instance]
+	if !ok {
+		return nil, errors.New("Can not get redis instance for APPL_DB")
+	}
+
+	// remove /var from path because /var/run is a symbolic link to /run and will fail in a container
+	socketPath := instance.UnixSocketPath
+	if strings.HasPrefix(socketPath, "/var") {
+		socketPath = strings.Replace(socketPath, "/var", "", 1)
+	}
+
+	password := ""
+	if instance.PasswordPath != "" {
+		passwordFromFile, err := os.ReadFile(path.Join(basePath, instance.PasswordPath))
+		if err != nil {
+			return nil, err
+		}
+
+		if len(passwordFromFile) > 0 {
+			password = string(passwordFromFile)
+		}
+	}
+
 	return &Svc{
 		client: redis.NewClient(&redis.Options{
 			Network:  "unix",
-			Addr:     path.Join(basePath, CRedisSockPath),
-			Username: username,
+			Addr:     path.Join(basePath, socketPath),
+			Username: "",
 			Password: password,
-			DB:       0, // use default DB
+			DB:       applDB.ID,
 		}),
 		ctx:       context.Background(),
 		indexPath: path.Join(basePath, CClassNetPath),
-	}
+		separator: applDB.Separator,
+	}, nil
 }
 
 func (s *Svc) GetFrames() ([]frame.Frame, error) {
@@ -94,7 +138,7 @@ func (s *Svc) GetFrames() ([]frame.Frame, error) {
 
 func (s *Svc) GetPortAdditionalInfo(name string) (map[string]string, error) {
 	result := map[string]string{CPortLanes: "", CPortFec: ""}
-	key := CPortEntryPrefix + name
+	key := CPortEntryPrefix + s.separator + name
 	for _, f := range CRedisPortFields {
 		val, err := s.client.Do(s.ctx, "HGET", key, f).Result()
 		if err != nil {
