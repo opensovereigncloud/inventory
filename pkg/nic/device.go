@@ -4,6 +4,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 
 	"github.com/pkg/errors"
@@ -55,7 +56,11 @@ const (
 	CPredictableKernelNameAssignType   = "predictably named by the kernel"
 	CUserspaceNameAssignType           = "named by userspace"
 	CRenamedNameAssignType             = "renamed"
+
+	CPCIAddressPattern = "^([0-9a-fA-F]{4}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}.[0-9]{1})|([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12})$"
 )
+
+var CPCIAddressRegex = regexp.MustCompile(CPCIAddressPattern)
 
 type AddressAssignType string
 
@@ -130,7 +135,14 @@ func (n *Device) defPCIAddress(thePath string) error {
 		return errors.Wrapf(err, "unable to get stat for path %s", filePath)
 	}
 
-	n.PCIAddress = fileInfo.Name()
+	// Device may use other bus, e.g. USB,
+	// therefore we need to validate whether it is a PCI address or not first
+	pciAddress := fileInfo.Name()
+	isPCIAddress := CPCIAddressRegex.MatchString(pciAddress)
+	if !isPCIAddress {
+		pciAddress = ""
+	}
+	n.PCIAddress = pciAddress
 
 	return nil
 }
