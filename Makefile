@@ -17,10 +17,10 @@ endif
 
 
 .PHONY: all
-all: compile
+all: build
 
-.PHONY: compile
-compile: fmt imports vet
+.PHONY: build
+build: fmt imports vet
 	for BIN_NAME in $(INVENTORY_BIN_NAME) $(LLDP_UPDATE_BIN_NAME) $(BENCHMARK_BIN_NAME) $(BENCHMARK_SCHEDULER_BIN_NAME); do \
 		go build -o dist/$$BIN_NAME cmd/$$BIN_NAME/main.go; \
 	done
@@ -28,6 +28,7 @@ compile: fmt imports vet
 
 .PHONY: imports
 imports:
+	go get golang.org/x/tools/cmd/goimports
 	goimports -local "github.com/onmetal/inventory" -w .
 
 .PHONY: fmt
