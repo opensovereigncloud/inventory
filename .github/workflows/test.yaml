@@ -1,0 +1,36 @@
+name: Pull Request Code test
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    tags:
+      - v*
+    paths-ignore:
+      - '**.md'
+      - 'deploy/**'
+  pull_request_target:
+    branches:
+      - main
+    paths-ignore:
+      - 'deploy/**'
+      - 'docs/**'
+      - '**/*.md'
+
+jobs:
+  run:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-go@v3
+        with:
+          go-version-file: go.mod
+      - uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.BOT_PRIVATE_KEY }}
+      - run: ./hack/setup-git-redirect.sh
+      - run: make build
+      - run: make test
