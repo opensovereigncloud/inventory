@@ -20,16 +20,11 @@ endif
 all: build
 
 .PHONY: build
-build: fmt imports vet
+build: fmt vet
 	for BIN_NAME in $(INVENTORY_BIN_NAME) $(LLDP_UPDATE_BIN_NAME) $(BENCHMARK_BIN_NAME) $(BENCHMARK_SCHEDULER_BIN_NAME); do \
 		go build -o dist/$$BIN_NAME cmd/$$BIN_NAME/main.go; \
 	done
 	cp -rf res/ dist/
-
-.PHONY: imports
-imports:
-	go get golang.org/x/tools/cmd/goimports
-	goimports -local "github.com/onmetal/inventory" -w .
 
 .PHONY: fmt
 fmt:
