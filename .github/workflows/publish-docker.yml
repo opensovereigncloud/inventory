@@ -65,7 +65,7 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
     - name: Build and push
-      timeout-minutes: 100
+      timeout-minutes: 150
       uses: docker/build-push-action@v4
       with:
         context: .
