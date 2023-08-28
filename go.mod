@@ -1,6 +1,6 @@
 module github.com/onmetal/inventory
 
-go 1.21
+go 1.21.0
 
 require (
 	github.com/Jeffail/gabs/v2 v2.7.0
