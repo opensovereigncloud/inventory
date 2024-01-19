@@ -1,5 +1,5 @@
-apiVersion: benchmark.onmetal.de/v1alpha3
-kind: Machine
+apiVersion: metal.ironcore.dev/v1alpha4
+kind: Benchmark
 metadata:
   name: e8dee8c0-4984-11ea-af8b-0a94efa9371d
 spec:
