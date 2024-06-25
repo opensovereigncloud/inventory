@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	metalv1alpha4 "github.com/ironcore-dev/metal/api/v1alpha1"
+	metalv1alpha1 "github.com/ironcore-dev/metal/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -39,8 +39,8 @@ func NewBuilderSvc(printer *printer.Svc) *BuilderSvc {
 	}
 }
 
-func (s *BuilderSvc) Build(inv *inventory.Inventory) (*metalv1alpha4.Inventory, error) {
-	setters := []func(*metalv1alpha4.Inventory, *inventory.Inventory){
+func (s *BuilderSvc) Build(inv *inventory.Inventory) (*metalv1alpha1.Inventory, error) {
+	setters := []func(*metalv1alpha1.Inventory, *inventory.Inventory){
 		s.SetSystem,
 		s.SetIPMIs,
 		s.SetBlocks,
@@ -57,10 +57,10 @@ func (s *BuilderSvc) Build(inv *inventory.Inventory) (*metalv1alpha4.Inventory, 
 	return s.BuildInOrder(inv, setters)
 }
 
-func (s *BuilderSvc) BuildInOrder(inv *inventory.Inventory, setters []func(*metalv1alpha4.Inventory, *inventory.Inventory)) (*metalv1alpha4.Inventory, error) {
-	cr := &metalv1alpha4.Inventory{
+func (s *BuilderSvc) BuildInOrder(inv *inventory.Inventory, setters []func(*metalv1alpha1.Inventory, *inventory.Inventory)) (*metalv1alpha1.Inventory, error) {
+	cr := &metalv1alpha1.Inventory{
 		ObjectMeta: metav1.ObjectMeta{},
-		Spec:       metalv1alpha4.InventorySpec{},
+		Spec:       metalv1alpha1.InventorySpec{},
 	}
 
 	for _, setter := range setters {
@@ -70,7 +70,7 @@ func (s *BuilderSvc) BuildInOrder(inv *inventory.Inventory, setters []func(*meta
 	return cr, nil
 }
 
-func (s *BuilderSvc) SetSystem(cr *metalv1alpha4.Inventory, inv *inventory.Inventory) {
+func (s *BuilderSvc) SetSystem(cr *metalv1alpha1.Inventory, inv *inventory.Inventory) {
 	if inv.DMI == nil {
 		return
 	}
@@ -92,7 +92,7 @@ func (s *BuilderSvc) SetSystem(cr *metalv1alpha4.Inventory, inv *inventory.Inven
 	}
 	cr.Name = hostUUID
 
-	cr.Spec.System = &metalv1alpha4.SystemSpec{
+	cr.Spec.System = &metalv1alpha1.SystemSpec{
 		ID:           hostUUID,
 		Manufacturer: dmi.SystemInformation.Manufacturer,
 		ProductSKU:   dmi.SystemInformation.SKUNumber,
@@ -100,16 +100,16 @@ func (s *BuilderSvc) SetSystem(cr *metalv1alpha4.Inventory, inv *inventory.Inven
 	}
 }
 
-func (s *BuilderSvc) SetIPMIs(cr *metalv1alpha4.Inventory, inv *inventory.Inventory) {
+func (s *BuilderSvc) SetIPMIs(cr *metalv1alpha1.Inventory, inv *inventory.Inventory) {
 	ipmiDevCount := len(inv.IPMIDevices)
 	if ipmiDevCount == 0 {
 		return
 	}
 
-	ipmis := make([]metalv1alpha4.IPMISpec, ipmiDevCount)
+	ipmis := make([]metalv1alpha1.IPMISpec, ipmiDevCount)
 
 	for i, ipmiDev := range inv.IPMIDevices {
-		ipmi := metalv1alpha4.IPMISpec{
+		ipmi := metalv1alpha1.IPMISpec{
 			IPAddress:  ipmiDev.IPAddress,
 			MACAddress: ipmiDev.MACAddress,
 		}
@@ -126,12 +126,12 @@ func (s *BuilderSvc) SetIPMIs(cr *metalv1alpha4.Inventory, inv *inventory.Invent
 	cr.Spec.IPMIs = ipmis
 }
 
-func (s *BuilderSvc) SetBlocks(cr *metalv1alpha4.Inventory, inv *inventory.Inventory) {
+func (s *BuilderSvc) SetBlocks(cr *metalv1alpha1.Inventory, inv *inventory.Inventory) {
 	if len(inv.BlockDevices) == 0 {
 		return
 	}
 
-	blocks := make([]metalv1alpha4.BlockSpec, 0)
+	blocks := make([]metalv1alpha1.BlockSpec, 0)
 	var capacity uint64 = 0
 
 	for _, blockDev := range inv.BlockDevices {
@@ -140,20 +140,20 @@ func (s *BuilderSvc) SetBlocks(cr *metalv1alpha4.Inventory, inv *inventory.Inven
 			continue
 		}
 
-		var partitionTable *metalv1alpha4.PartitionTableSpec
+		var partitionTable *metalv1alpha1.PartitionTableSpec
 		if blockDev.PartitionTable != nil {
 			table := blockDev.PartitionTable
 
-			partitionTable = &metalv1alpha4.PartitionTableSpec{
+			partitionTable = &metalv1alpha1.PartitionTableSpec{
 				Type: string(table.Type),
 			}
 
 			partCount := len(table.Partitions)
 			if partCount > 0 {
-				parts := make([]metalv1alpha4.PartitionSpec, partCount)
+				parts := make([]metalv1alpha1.PartitionSpec, partCount)
 
 				for i, partition := range table.Partitions {
-					part := metalv1alpha4.PartitionSpec{
+					part := metalv1alpha1.PartitionSpec{
 						ID:   partition.ID,
 						Name: partition.Name,
 						Size: partition.Size,
@@ -170,7 +170,7 @@ func (s *BuilderSvc) SetBlocks(cr *metalv1alpha4.Inventory, inv *inventory.Inven
 			}
 		}
 
-		block := metalv1alpha4.BlockSpec{
+		block := metalv1alpha1.BlockSpec{
 			Name:           blockDev.Name,
 			Type:           blockDev.Type,
 			Rotational:     blockDev.Rotational,
@@ -191,26 +191,26 @@ func (s *BuilderSvc) SetBlocks(cr *metalv1alpha4.Inventory, inv *inventory.Inven
 	cr.Spec.Blocks = blocks
 }
 
-func (s *BuilderSvc) SetMemory(cr *metalv1alpha4.Inventory, inv *inventory.Inventory) {
+func (s *BuilderSvc) SetMemory(cr *metalv1alpha1.Inventory, inv *inventory.Inventory) {
 	if inv.MemInfo == nil {
 		return
 	}
 
-	cr.Spec.Memory = &metalv1alpha4.MemorySpec{
+	cr.Spec.Memory = &metalv1alpha1.MemorySpec{
 		Total: inv.MemInfo.MemTotal,
 	}
 }
 
-func (s *BuilderSvc) SetMLCPerf(cr *metalv1alpha4.Inventory, inv *inventory.Inventory) {
+func (s *BuilderSvc) SetMLCPerf(cr *metalv1alpha1.Inventory, inv *inventory.Inventory) {
 	// TODO set data to inventory when CRD will get perf fields
 }
 
-func (s *BuilderSvc) SetCPUs(cr *metalv1alpha4.Inventory, inv *inventory.Inventory) {
+func (s *BuilderSvc) SetCPUs(cr *metalv1alpha1.Inventory, inv *inventory.Inventory) {
 	if len(inv.CPUInfo) == 0 {
 		return
 	}
 
-	cpuMarkMap := make(map[uint64]metalv1alpha4.CPUSpec)
+	cpuMarkMap := make(map[uint64]metalv1alpha1.CPUSpec)
 
 	for _, cpuInfo := range inv.CPUInfo {
 		if val, ok := cpuMarkMap[cpuInfo.PhysicalID]; ok {
@@ -219,7 +219,7 @@ func (s *BuilderSvc) SetCPUs(cr *metalv1alpha4.Inventory, inv *inventory.Invento
 			continue
 		}
 
-		cpu := metalv1alpha4.CPUSpec{
+		cpu := metalv1alpha1.CPUSpec{
 			PhysicalID:      cpuInfo.PhysicalID,
 			LogicalIDs:      []uint64{cpuInfo.Processor},
 			Cores:           cpuInfo.CpuCores,
@@ -255,7 +255,7 @@ func (s *BuilderSvc) SetCPUs(cr *metalv1alpha4.Inventory, inv *inventory.Invento
 		cpuMarkMap[cpuInfo.PhysicalID] = cpu
 	}
 
-	cpus := make([]metalv1alpha4.CPUSpec, 0)
+	cpus := make([]metalv1alpha1.CPUSpec, 0)
 	for _, v := range cpuMarkMap {
 		cpus = append(cpus, v)
 	}
@@ -267,20 +267,20 @@ func (s *BuilderSvc) SetCPUs(cr *metalv1alpha4.Inventory, inv *inventory.Invento
 	cr.Spec.CPUs = cpus
 }
 
-func (s *BuilderSvc) SetNUMANodes(cr *metalv1alpha4.Inventory, inv *inventory.Inventory) {
+func (s *BuilderSvc) SetNUMANodes(cr *metalv1alpha1.Inventory, inv *inventory.Inventory) {
 	if len(inv.NumaNodes) == 0 {
 		return
 	}
 
-	numaNodes := make([]metalv1alpha4.NumaSpec, len(inv.NumaNodes))
+	numaNodes := make([]metalv1alpha1.NumaSpec, len(inv.NumaNodes))
 	for idx, numaNode := range inv.NumaNodes {
-		numaNodes[idx] = metalv1alpha4.NumaSpec{
+		numaNodes[idx] = metalv1alpha1.NumaSpec{
 			ID:        numaNode.ID,
 			CPUs:      numaNode.CPUs,
 			Distances: numaNode.Distances,
 		}
 		if numaNode.Memory != nil {
-			numaNodes[idx].Memory = &metalv1alpha4.MemorySpec{
+			numaNodes[idx].Memory = &metalv1alpha1.MemorySpec{
 				Total: numaNode.Memory.MemTotal,
 			}
 		}
@@ -293,56 +293,56 @@ func (s *BuilderSvc) SetNUMANodes(cr *metalv1alpha4.Inventory, inv *inventory.In
 	cr.Spec.NUMA = numaNodes
 }
 
-func (s *BuilderSvc) SetPCIDevices(cr *metalv1alpha4.Inventory, inv *inventory.Inventory) {
+func (s *BuilderSvc) SetPCIDevices(cr *metalv1alpha1.Inventory, inv *inventory.Inventory) {
 	if len(inv.PCIBusDevices) == 0 {
 		return
 	}
 
-	pciDevices := make([]metalv1alpha4.PCIDeviceSpec, 0)
+	pciDevices := make([]metalv1alpha1.PCIDeviceSpec, 0)
 	for _, pciBus := range inv.PCIBusDevices {
 		for _, pciDevice := range pciBus.Devices {
-			pciDeviceSpec := metalv1alpha4.PCIDeviceSpec{
+			pciDeviceSpec := metalv1alpha1.PCIDeviceSpec{
 				BusID:   pciBus.ID,
 				Address: pciDevice.Address,
 			}
 			if pciDevice.Vendor != nil {
-				pciDeviceSpec.Vendor = &metalv1alpha4.PCIDeviceDescriptionSpec{
+				pciDeviceSpec.Vendor = &metalv1alpha1.PCIDeviceDescriptionSpec{
 					ID:   pciDevice.Vendor.ID,
 					Name: pciDevice.Vendor.Name,
 				}
 			}
 			if pciDevice.Subvendor != nil {
-				pciDeviceSpec.Subvendor = &metalv1alpha4.PCIDeviceDescriptionSpec{
+				pciDeviceSpec.Subvendor = &metalv1alpha1.PCIDeviceDescriptionSpec{
 					ID:   pciDevice.Subvendor.ID,
 					Name: pciDevice.Subvendor.Name,
 				}
 			}
 			if pciDevice.Type != nil {
-				pciDeviceSpec.Type = &metalv1alpha4.PCIDeviceDescriptionSpec{
+				pciDeviceSpec.Type = &metalv1alpha1.PCIDeviceDescriptionSpec{
 					ID:   pciDevice.Type.ID,
 					Name: pciDevice.Type.Name,
 				}
 			}
 			if pciDevice.Subtype != nil {
-				pciDeviceSpec.Subtype = &metalv1alpha4.PCIDeviceDescriptionSpec{
+				pciDeviceSpec.Subtype = &metalv1alpha1.PCIDeviceDescriptionSpec{
 					ID:   pciDevice.Subtype.ID,
 					Name: pciDevice.Subtype.Name,
 				}
 			}
 			if pciDevice.Class != nil {
-				pciDeviceSpec.Class = &metalv1alpha4.PCIDeviceDescriptionSpec{
+				pciDeviceSpec.Class = &metalv1alpha1.PCIDeviceDescriptionSpec{
 					ID:   pciDevice.Class.ID,
 					Name: pciDevice.Class.Name,
 				}
 			}
 			if pciDevice.Subclass != nil {
-				pciDeviceSpec.Subclass = &metalv1alpha4.PCIDeviceDescriptionSpec{
+				pciDeviceSpec.Subclass = &metalv1alpha1.PCIDeviceDescriptionSpec{
 					ID:   pciDevice.Subclass.ID,
 					Name: pciDevice.Subclass.Name,
 				}
 			}
 			if pciDevice.ProgrammingInterface != nil {
-				pciDeviceSpec.ProgrammingInterface = &metalv1alpha4.PCIDeviceDescriptionSpec{
+				pciDeviceSpec.ProgrammingInterface = &metalv1alpha1.PCIDeviceDescriptionSpec{
 					ID:   pciDevice.ProgrammingInterface.ID,
 					Name: pciDevice.ProgrammingInterface.Name,
 				}
@@ -359,7 +359,7 @@ func (s *BuilderSvc) SetPCIDevices(cr *metalv1alpha4.Inventory, inv *inventory.I
 	cr.Spec.PCIDevices = pciDevices
 }
 
-func (s *BuilderSvc) SetNICs(cr *metalv1alpha4.Inventory, inv *inventory.Inventory) {
+func (s *BuilderSvc) SetNICs(cr *metalv1alpha1.Inventory, inv *inventory.Inventory) {
 	if len(inv.NICs) == 0 {
 		return
 	}
@@ -368,13 +368,13 @@ func (s *BuilderSvc) SetNICs(cr *metalv1alpha4.Inventory, inv *inventory.Invento
 		return
 	}
 
-	lldpMap := make(map[int][]metalv1alpha4.LLDPSpec)
+	lldpMap := make(map[int][]metalv1alpha1.LLDPSpec)
 	for _, f := range inv.LLDPFrames {
 		checkMap := make(map[frame.Capability]struct{})
-		enabledCapabilities := make([]metalv1alpha4.LLDPCapabilities, 0)
+		enabledCapabilities := make([]metalv1alpha1.LLDPCapabilities, 0)
 		for _, capability := range f.EnabledCapabilities {
 			if _, ok := checkMap[capability]; !ok {
-				enabledCapabilities = append(enabledCapabilities, metalv1alpha4.LLDPCapabilities(capability))
+				enabledCapabilities = append(enabledCapabilities, metalv1alpha1.LLDPCapabilities(capability))
 				checkMap[capability] = struct{}{}
 			}
 		}
@@ -382,7 +382,7 @@ func (s *BuilderSvc) SetNICs(cr *metalv1alpha4.Inventory, inv *inventory.Invento
 			return enabledCapabilities[i] < enabledCapabilities[j]
 		})
 		id, _ := strconv.Atoi(f.InterfaceID)
-		l := metalv1alpha4.LLDPSpec{
+		l := metalv1alpha1.LLDPSpec{
 			ChassisID:         f.ChassisID,
 			SystemName:        f.SystemName,
 			SystemDescription: f.SystemDescription,
@@ -392,33 +392,33 @@ func (s *BuilderSvc) SetNICs(cr *metalv1alpha4.Inventory, inv *inventory.Invento
 		}
 
 		if _, ok := lldpMap[id]; !ok {
-			lldpMap[id] = make([]metalv1alpha4.LLDPSpec, 0)
+			lldpMap[id] = make([]metalv1alpha1.LLDPSpec, 0)
 		}
 
 		lldpMap[id] = append(lldpMap[id], l)
 	}
 
-	ndpMap := make(map[int][]metalv1alpha4.NDPSpec)
+	ndpMap := make(map[int][]metalv1alpha1.NDPSpec)
 	for _, ndp := range inv.NDPFrames {
 		// filtering no arp as ip neigh does
 		if ndp.State == netlink.CNeighbourNoARPCacheState {
 			continue
 		}
 
-		n := metalv1alpha4.NDPSpec{
+		n := metalv1alpha1.NDPSpec{
 			IPAddress:  ndp.IP,
 			MACAddress: ndp.MACAddress,
 			State:      string(ndp.State),
 		}
 
 		if _, ok := ndpMap[ndp.DeviceIndex]; !ok {
-			ndpMap[ndp.DeviceIndex] = make([]metalv1alpha4.NDPSpec, 0)
+			ndpMap[ndp.DeviceIndex] = make([]metalv1alpha1.NDPSpec, 0)
 		}
 
 		ndpMap[ndp.DeviceIndex] = append(ndpMap[ndp.DeviceIndex], n)
 	}
 
-	nics := make([]metalv1alpha4.NICSpec, 0)
+	nics := make([]metalv1alpha1.NICSpec, 0)
 	for _, nic := range inv.NICs {
 		// it was reported that loopback and docker interfaces on some systems may have
 		// PCI address assigned (but they have weird format), so we need to exclude them too
@@ -458,7 +458,7 @@ func (s *BuilderSvc) SetNICs(cr *metalv1alpha4.Inventory, inv *inventory.Invento
 			return iStr < jStr
 		})
 
-		ns := metalv1alpha4.NICSpec{
+		ns := metalv1alpha1.NICSpec{
 			Name:       nic.Name,
 			PCIAddress: nic.PCIAddress,
 			MACAddress: nic.Address,
@@ -480,30 +480,30 @@ func (s *BuilderSvc) SetNICs(cr *metalv1alpha4.Inventory, inv *inventory.Invento
 	cr.Spec.NICs = nics
 }
 
-func (s *BuilderSvc) SetVirt(cr *metalv1alpha4.Inventory, inv *inventory.Inventory) {
+func (s *BuilderSvc) SetVirt(cr *metalv1alpha1.Inventory, inv *inventory.Inventory) {
 	if inv.Virtualization == nil {
 		return
 	}
 
-	cr.Spec.Virt = &metalv1alpha4.VirtSpec{
+	cr.Spec.Virt = &metalv1alpha1.VirtSpec{
 		VMType: string(inv.Virtualization.Type),
 	}
 }
 
-func (s *BuilderSvc) SetHost(cr *metalv1alpha4.Inventory, inv *inventory.Inventory) {
+func (s *BuilderSvc) SetHost(cr *metalv1alpha1.Inventory, inv *inventory.Inventory) {
 	if inv.Host == nil {
 		return
 	}
-	cr.Spec.Host = &metalv1alpha4.HostSpec{
+	cr.Spec.Host = &metalv1alpha1.HostSpec{
 		Name: inv.Host.Name,
 	}
 }
 
-func (s *BuilderSvc) SetDistro(cr *metalv1alpha4.Inventory, inv *inventory.Inventory) {
+func (s *BuilderSvc) SetDistro(cr *metalv1alpha1.Inventory, inv *inventory.Inventory) {
 	if inv.Distro == nil {
 		return
 	}
-	cr.Spec.Distro = &metalv1alpha4.DistroSpec{
+	cr.Spec.Distro = &metalv1alpha1.DistroSpec{
 		BuildVersion:  inv.Distro.BuildVersion,
 		DebianVersion: inv.Distro.DebianVersion,
 		KernelVersion: inv.Distro.KernelVersion,

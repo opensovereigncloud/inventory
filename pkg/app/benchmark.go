@@ -7,7 +7,7 @@ import (
 	"bytes"
 	"encoding/json"
 
-	metalv1alpha4 "github.com/ironcore-dev/metal/api/v1alpha1"
+	metalv1alpha1 "github.com/ironcore-dev/metal/api/v1alpha1"
 	"github.com/pkg/errors"
 
 	"github.com/onmetal/inventory/pkg/crd"
@@ -35,14 +35,8 @@ func NewBenchmarkApp() (*BenchmarkApp, int) {
 	crdBuilderSvc := crd.NewBuilderSvc(p)
 
 	var crdSvcConstructor func() (crd.SaverSvc, error)
-	if f.Gateway != "" {
-		crdSvcConstructor = func() (crd.SaverSvc, error) {
-			return crd.NewGatewaySaverSvc(f.Gateway, f.KubeNamespace, f.Timeout)
-		}
-	} else {
-		crdSvcConstructor = func() (crd.SaverSvc, error) {
-			return crd.NewKubeAPISaverSvc(f.Kubeconfig, f.KubeNamespace)
-		}
+	crdSvcConstructor = func() (crd.SaverSvc, error) {
+		return crd.NewKubeAPISaverSvc(f.Kubeconfig, f.KubeNamespace)
 	}
 
 	crdSaverSvc, err := crdSvcConstructor()
@@ -87,7 +81,7 @@ func (s *BenchmarkApp) Run() int {
 	s.printer.VOut("Gathered data:")
 	s.printer.VOut(prettifiedJsonBuf.String())
 
-	buildSetters := []func(*metalv1alpha4.Inventory, *inventory.Inventory){
+	buildSetters := []func(*metalv1alpha1.Inventory, *inventory.Inventory){
 		s.crdBuilderSvc.SetMLCPerf,
 	}
 

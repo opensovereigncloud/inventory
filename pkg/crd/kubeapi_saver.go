@@ -6,7 +6,7 @@ package crd
 import (
 	"context"
 
-	metalv1alpha4 "github.com/ironcore-dev/metal/api/v1alpha1"
+	metalv1alpha1 "github.com/ironcore-dev/metal/api/v1alpha1"
 	"github.com/pkg/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -29,7 +29,7 @@ func NewKubeAPISaverSvc(kubeconfig string, namespace string) (SaverSvc, error) {
 		return nil, errors.Wrapf(err, "unable to read kubeconfig from path %s", kubeconfig)
 	}
 
-	if err := metalv1alpha4.AddToScheme(scheme.Scheme); err != nil {
+	if err := metalv1alpha1.AddToScheme(scheme.Scheme); err != nil {
 		return nil, errors.Wrap(err, "unable to add registered types to client scheme")
 	}
 
@@ -46,7 +46,7 @@ func NewKubeAPISaverSvc(kubeconfig string, namespace string) (SaverSvc, error) {
 	}, nil
 }
 
-func (s *KubeAPISaverSvc) Save(inv *metalv1alpha4.Inventory) error {
+func (s *KubeAPISaverSvc) Save(inv *metalv1alpha1.Inventory) error {
 	err := s.client.Create(context.Background(), inv)
 	if err == nil {
 		return nil
@@ -55,7 +55,7 @@ func (s *KubeAPISaverSvc) Save(inv *metalv1alpha4.Inventory) error {
 		return errors.Wrap(err, "unhandled error on creation")
 	}
 
-	existing := &metalv1alpha4.Inventory{}
+	existing := &metalv1alpha1.Inventory{}
 	err = s.client.Get(context.Background(), types.NamespacedName{
 		Namespace: "",
 		Name:      inv.Name,
@@ -70,18 +70,5 @@ func (s *KubeAPISaverSvc) Save(inv *metalv1alpha4.Inventory) error {
 		return errors.Wrap(err, "unhandled error on update")
 	}
 
-	return nil
-}
-
-func (s *KubeAPISaverSvc) Patch(_ string, _ interface{}) error {
-	// patchData, err := json.Marshal(patch)
-	// if err != nil {
-	// 	return errors.Wrap(err, "unable to marshal inventory")
-	// }
-	// fmt.Println(string(patchData))
-	// err = s.client.Patch(context.Background(), name, types.MergePatchType, patchData, metav1.PatchOptions{})
-	// if err != nil {
-	// 	return errors.Wrap(err, "unable to patch inventory")
-	// }
 	return nil
 }

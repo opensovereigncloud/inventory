@@ -3,9 +3,8 @@
 
 package crd
 
-import apiv1alpha1 "github.com/ironcore-dev/metal/apis/metal/v1alpha4"
+import apiv1alpha1 "github.com/ironcore-dev/metal/api/v1alpha1"
 
 type SaverSvc interface {
 	Save(inv *apiv1alpha1.Inventory) error
-	Patch(name string, patch interface{}) error
 }
