@@ -34,8 +34,7 @@ func NewNICUpdaterApp() (*NICUpdaterApp, int) {
 
 	crdBuilderSvc := crd.NewBuilderSvc(p)
 
-	var crdSvcConstructor func() (crd.SaverSvc, error)
-	crdSvcConstructor = func() (crd.SaverSvc, error) {
+	crdSvcConstructor := func() (crd.SaverSvc, error) {
 		return crd.NewKubeAPISaverSvc(f.Kubeconfig, f.KubeNamespace)
 	}
 
@@ -111,11 +110,12 @@ func (s *NICUpdaterApp) Run() int {
 	}{}
 	patch.Spec.Nics = cr.Spec.NICs
 
-	err = s.crdSaverSvc.Patch(cr.Name, patch)
-	if err != nil {
-		s.printer.Err(errors.Wrap(err, "unable to patch"))
-		return CErrRetCode
-	}
+	// todo: refactor to use apply configurations
+	// err = s.crdSaverSvc.Patch(cr.Name, patch)
+	// if err != nil {
+	// 	s.printer.Err(errors.Wrap(err, "unable to patch"))
+	// 	return CErrRetCode
+	// }
 
 	return COKRetCode
 }
