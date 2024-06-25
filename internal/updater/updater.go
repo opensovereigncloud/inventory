@@ -10,7 +10,7 @@ import (
 	"sync"
 
 	"github.com/Jeffail/gabs/v2"
-	metalv1alpha4 "github.com/ironcore-dev/metal/apis/metal/v1alpha4"
+	metalv1alpha4 "github.com/ironcore-dev/metal/api/v1alpha1"
 
 	"github.com/onmetal/inventory/cmd/benchmark-scheduler/logger"
 	"github.com/onmetal/inventory/internal/benchmarks/output"

@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"time"
 
-	metalv1alpha4 "github.com/ironcore-dev/metal/apis/metal/v1alpha4"
+	metalv1alpha4 "github.com/ironcore-dev/metal/api/v1alpha1"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/util/json"
 )

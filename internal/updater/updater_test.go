@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	metalv1alpha4 "github.com/ironcore-dev/metal/apis/metal/v1alpha4"
+	metalv1alpha4 "github.com/ironcore-dev/metal/api/v1alpha1"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/onmetal/inventory/cmd/benchmark-scheduler/logger"

@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	metalv1alpha4 "github.com/ironcore-dev/metal/apis/metal/v1alpha4"
+	metalv1alpha4 "github.com/ironcore-dev/metal/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
