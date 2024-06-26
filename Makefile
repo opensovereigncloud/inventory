@@ -3,8 +3,6 @@ IMG ?= controller:latest
 
 INVENTORY_BIN_NAME = "inventory"
 LLDP_UPDATE_BIN_NAME = "nic-updater"
-BENCHMARK_BIN_NAME = "benchmark"
-BENCHMARK_SCHEDULER_BIN_NAME = "benchmark-scheduler"
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -78,7 +76,7 @@ check: vet add-license lint test # Run lint, add licenses, test
 
 .PHONY: build
 build: fmt vet ## Build manager binary.
-	for BIN_NAME in $(INVENTORY_BIN_NAME) $(LLDP_UPDATE_BIN_NAME) $(BENCHMARK_BIN_NAME) $(BENCHMARK_SCHEDULER_BIN_NAME); do \
+	for BIN_NAME in $(INVENTORY_BIN_NAME) $(LLDP_UPDATE_BIN_NAME); do \
 		go build -o dist/$$BIN_NAME cmd/$$BIN_NAME/main.go; \
 	done
 	cp -rf res/ dist/
