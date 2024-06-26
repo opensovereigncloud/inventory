@@ -14,8 +14,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/onmetal/inventory/cmd/benchmark-scheduler/logger"
 	bencherr "github.com/onmetal/inventory/internal/errors"
+	"github.com/onmetal/inventory/internal/logger"
 )
 
 const defaultTimeoutSecond = 60

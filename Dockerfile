@@ -1,4 +1,4 @@
-FROM golang:1.22.4 as builder
+FROM golang:1.22.4 AS builder
 
 ARG GOARCH
 
@@ -25,12 +25,6 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 RUN --mount=type=cache,target=/root/.cache/go-build \
   --mount=type=cache,target=/go/pkg \
   CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} GO111MODULE=on go build -a -o bin/nic-updater cmd/nic-updater/main.go
-RUN --mount=type=cache,target=/root/.cache/go-build \
-  --mount=type=cache,target=/go/pkg \
-  CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} GO111MODULE=on go build -a -o bin/benchmark cmd/benchmark/main.go
-RUN --mount=type=cache,target=/root/.cache/go-build \
-  --mount=type=cache,target=/go/pkg \
-  CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} GO111MODULE=on go build -a -o bin/benchmark-scheduler cmd/benchmark-scheduler/main.go
 
 FROM debian:testing-slim
 
@@ -42,6 +36,4 @@ WORKDIR /app
 
 COPY --from=builder /build/bin/inventory .
 COPY --from=builder /build/bin/nic-updater .
-COPY --from=builder /build/bin/benchmark .
-COPY --from=builder /build/bin/benchmark-scheduler .
 COPY --from=builder /build/res/pci.ids ./res/

@@ -44,15 +44,8 @@ func NewInventoryApp() (*InventoryApp, int) {
 
 	crdBuilderSvc := crd.NewBuilderSvc(p)
 
-	var crdSvcConstructor func() (crd.SaverSvc, error)
-	if f.Gateway != "" {
-		crdSvcConstructor = func() (crd.SaverSvc, error) {
-			return crd.NewGatewaySaverSvc(f.Gateway, f.KubeNamespace, f.Timeout)
-		}
-	} else {
-		crdSvcConstructor = func() (crd.SaverSvc, error) {
-			return crd.NewKubeAPISaverSvc(f.Kubeconfig, f.KubeNamespace)
-		}
+	crdSvcConstructor := func() (crd.SaverSvc, error) {
+		return crd.NewKubeAPISaverSvc(f.Kubeconfig, f.KubeNamespace)
 	}
 
 	crdSaverSvc, err := crdSvcConstructor()
@@ -158,11 +151,7 @@ func (s *InventoryApp) Run() int {
 	s.printer.VOut("Gathered data:")
 	s.printer.VOut(prettifiedJsonBuf.String())
 
-	if s.crdSaverPatch {
-		err = s.crdSaverSvc.Patch(inv.DMI.SystemInformation.UUID, cr)
-	} else {
-		err = s.crdSaverSvc.Save(cr)
-	}
+	err = s.crdSaverSvc.Save(cr)
 	if err != nil {
 		s.printer.Err(errors.Wrap(err, "unable to save inventory resource"))
 		return CErrRetCode

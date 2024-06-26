@@ -11,8 +11,6 @@ import (
 
 	"github.com/pkg/errors"
 
-	switchConstants "github.com/ironcore-dev/metal/pkg/constants"
-
 	"github.com/onmetal/inventory/pkg/host"
 	"github.com/onmetal/inventory/pkg/printer"
 	"github.com/onmetal/inventory/pkg/redis"
@@ -21,6 +19,7 @@ import (
 
 const (
 	CNICDevicePath = "/sys/class/net"
+	FECNone        = "none"
 )
 
 type Svc struct {
@@ -70,7 +69,7 @@ func (s *Svc) GetData() ([]Device, error) {
 			nic.Lanes = uint8(len(strings.Split(info[redis.CPortLanes], ",")))
 			nic.FEC = info[redis.CPortFec]
 			if nic.FEC == "" {
-				nic.FEC = switchConstants.FECNone
+				nic.FEC = FECNone
 			}
 			speed, err := strconv.Atoi(info[redis.CPortSpeed])
 			if err != nil {

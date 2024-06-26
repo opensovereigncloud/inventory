@@ -4,7 +4,7 @@
 package app
 
 import (
-	metalv1alpha4 "github.com/ironcore-dev/metal/apis/metal/v1alpha4"
+	metalv1alpha1 "github.com/ironcore-dev/metal/api/v1alpha1"
 	"github.com/pkg/errors"
 
 	"github.com/onmetal/inventory/pkg/crd"
@@ -34,15 +34,8 @@ func NewNICUpdaterApp() (*NICUpdaterApp, int) {
 
 	crdBuilderSvc := crd.NewBuilderSvc(p)
 
-	var crdSvcConstructor func() (crd.SaverSvc, error)
-	if f.Gateway != "" {
-		crdSvcConstructor = func() (crd.SaverSvc, error) {
-			return crd.NewGatewaySaverSvc(f.Gateway, f.KubeNamespace, f.Timeout)
-		}
-	} else {
-		crdSvcConstructor = func() (crd.SaverSvc, error) {
-			return crd.NewKubeAPISaverSvc(f.Kubeconfig, f.KubeNamespace)
-		}
+	crdSvcConstructor := func() (crd.SaverSvc, error) {
+		return crd.NewKubeAPISaverSvc(f.Kubeconfig, f.KubeNamespace)
 	}
 
 	crdSaverSvc, err := crdSvcConstructor()
@@ -99,7 +92,7 @@ func (s *NICUpdaterApp) Run() int {
 
 	inv := s.gathererSvc.GatherInOrder(gatherSetters)
 
-	buildSetters := []func(*metalv1alpha4.Inventory, *inventory.Inventory){
+	buildSetters := []func(*metalv1alpha1.Inventory, *inventory.Inventory){
 		s.crdBuilderSvc.SetSystem,
 		s.crdBuilderSvc.SetNICs,
 	}
@@ -112,16 +105,17 @@ func (s *NICUpdaterApp) Run() int {
 
 	patch := struct {
 		Spec struct {
-			Nics []metalv1alpha4.NICSpec `json:"nics"`
+			Nics []metalv1alpha1.NICSpec `json:"nics"`
 		} `json:"spec"`
 	}{}
 	patch.Spec.Nics = cr.Spec.NICs
 
-	err = s.crdSaverSvc.Patch(cr.Name, patch)
-	if err != nil {
-		s.printer.Err(errors.Wrap(err, "unable to patch"))
-		return CErrRetCode
-	}
+	// todo: refactor to use apply configurations
+	// err = s.crdSaverSvc.Patch(cr.Name, patch)
+	// if err != nil {
+	// 	s.printer.Err(errors.Wrap(err, "unable to patch"))
+	// 	return CErrRetCode
+	// }
 
 	return COKRetCode
 }
